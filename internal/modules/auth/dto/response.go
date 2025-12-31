@@ -9,10 +9,10 @@ import (
 
 // AuthResponse represents an authentication response
 type AuthResponse struct {
-	AccessToken  string              `json:"access_token"`
-	RefreshToken string              `json:"refresh_token"`
-	ExpiresIn    int64               `json:"expires_in"`
-	User         dto.UserResponse    `json:"user"`
+	AccessToken  string                    `json:"access_token"`
+	RefreshToken string                    `json:"refresh_token"`
+	ExpiresIn    int64                     `json:"expires_in"`
+	User         dto.UserRoleResponse      `json:"user"`
 }
 
 // MessageResponse represents a simple message response
@@ -33,4 +33,9 @@ type RefreshToken struct {
 	Token     string    `json:"token" gorm:"type:varchar(500);uniqueIndex;not null"`
 	ExpiresAt time.Time `json:"expires_at" gorm:"not null"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// TableName specifies the table name for RefreshToken
+func (RefreshToken) TableName() string {
+	return "t_refresh_tokens"
 }

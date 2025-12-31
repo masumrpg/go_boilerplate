@@ -59,10 +59,34 @@ func (s *authService) Register(req *dto.RegisterRequest) (*dto.AuthResponse, err
 		Password: req.Password,
 	}
 
-	// Create user
+	// Create user (with default role assigned)
 	createdUser, err := s.userService.CreateUser(createUserReq)
 	if err != nil {
 		return nil, err
+	}
+
+	// Load user with role information
+	userWithRole, err := s.userService.GetProfileWithRole(createdUser.ID)
+	if err != nil {
+		return nil, errors.New("failed to load user role")
+	}
+
+	// Generate tokens with role information
+	roleSlug := ""
+	permissions := []string{}
+	if userWithRole.Role != nil {
+		roleSlug = userWithRole.Role.Slug
+		permissions = userWithRole.Role.Permissions
+	}
+
+	accessToken, refreshToken, err := s.jwtManager.GenerateTokenPair(
+		createdUser.ID,
+		createdUser.Email,
+		roleSlug,
+		permissions,
+	)
+	if err != nil {
+		return nil, errors.New("failed to generate tokens")
 	}
 
 	// Send welcome email if enabled
@@ -74,15 +98,6 @@ func (s *authService) Register(req *dto.RegisterRequest) (*dto.AuthResponse, err
 				println("Failed to send welcome email:", err.Error())
 			}
 		}()
-	}
-
-	// Generate tokens
-	accessToken, refreshToken, err := s.jwtManager.GenerateTokenPair(
-		createdUser.ID,
-		createdUser.Email,
-	)
-	if err != nil {
-		return nil, errors.New("failed to generate tokens")
 	}
 
 	// Save refresh token to database
@@ -97,7 +112,7 @@ func (s *authService) Register(req *dto.RegisterRequest) (*dto.AuthResponse, err
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    expiresIn,
-		User:         *createdUser,
+		User:         *userWithRole,
 	}, nil
 }
 
@@ -109,10 +124,25 @@ func (s *authService) Login(req *dto.LoginRequest) (*dto.AuthResponse, error) {
 		return nil, errors.New("invalid email or password")
 	}
 
-	// Generate tokens
+	// Load user with role information
+	userWithRole, err := s.userService.GetProfileWithRole(authenticatedUser.ID)
+	if err != nil {
+		return nil, errors.New("failed to load user role")
+	}
+
+	// Generate tokens with role information
+	roleSlug := ""
+	permissions := []string{}
+	if userWithRole.Role != nil {
+		roleSlug = userWithRole.Role.Slug
+		permissions = userWithRole.Role.Permissions
+	}
+
 	accessToken, refreshToken, err := s.jwtManager.GenerateTokenPair(
 		authenticatedUser.ID,
 		authenticatedUser.Email,
+		roleSlug,
+		permissions,
 	)
 	if err != nil {
 		return nil, errors.New("failed to generate tokens")
@@ -126,14 +156,11 @@ func (s *authService) Login(req *dto.LoginRequest) (*dto.AuthResponse, error) {
 	// Calculate expires in
 	expiresIn := int64(s.cfg.JWT.AccessExpiry.Seconds())
 
-	// Convert user to response
-	userResponse := authenticatedUser.ToResponse()
-
 	return &dto.AuthResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    expiresIn,
-		User:         userResponse,
+		User:         *userWithRole,
 	}, nil
 }
 
@@ -151,16 +178,25 @@ func (s *authService) RefreshToken(refreshToken string) (*dto.AuthResponse, erro
 		return nil, errors.New("refresh token not found or expired")
 	}
 
-	// Get user profile
-	userProfile, err := s.userService.GetProfile(claims.UserID)
+	// Get user profile with role
+	userProfile, err := s.userService.GetProfileWithRole(claims.UserID)
 	if err != nil {
 		return nil, errors.New("user not found")
 	}
 
-	// Generate new tokens
+	// Generate new tokens with role information
+	roleSlug := ""
+	permissions := []string{}
+	if userProfile.Role != nil {
+		roleSlug = userProfile.Role.Slug
+		permissions = userProfile.Role.Permissions
+	}
+
 	newAccessToken, newRefreshToken, err := s.jwtManager.GenerateTokenPair(
 		claims.UserID,
 		claims.Email,
+		roleSlug,
+		permissions,
 	)
 	if err != nil {
 		return nil, errors.New("failed to generate new tokens")

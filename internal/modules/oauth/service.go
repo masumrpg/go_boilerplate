@@ -219,14 +219,21 @@ func (s *oauthService) handleOAuthUser(userInfo *dto.OAuthUserInfo, token *oauth
 		}
 	}
 
-	// Get user profile
-	userProfile, err := s.userService.GetProfile(userID)
+	// Get user profile with role information
+	userProfile, err := s.userService.GetProfileWithRole(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Generate JWT tokens
-	accessToken, refreshToken, err := s.jwtManager.GenerateTokenPair(userID, userProfile.Email)
+	// Generate JWT tokens with role information
+	roleSlug := ""
+	permissions := []string{}
+	if userProfile.Role != nil {
+		roleSlug = userProfile.Role.Slug
+		permissions = userProfile.Role.Permissions
+	}
+
+	accessToken, refreshToken, err := s.jwtManager.GenerateTokenPair(userID, userProfile.Email, roleSlug, permissions)
 	if err != nil {
 		return nil, errors.New("failed to generate tokens")
 	}

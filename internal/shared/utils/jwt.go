@@ -10,8 +10,10 @@ import (
 
 // JWTClaims represents JWT claims structure
 type JWTClaims struct {
-	UserID uuid.UUID `json:"user_id"`
-	Email  string    `json:"email"`
+	UserID      uuid.UUID `json:"user_id"`
+	Email       string    `json:"email"`
+	RoleSlug    string    `json:"role_slug"`
+	Permissions []string  `json:"permissions"`
 	jwt.RegisteredClaims
 }
 
@@ -34,10 +36,12 @@ func NewJWTManager(secret string, accessExpiry, refreshExpiry time.Duration, iss
 }
 
 // GenerateToken generates a JWT token with custom claims
-func (j *JWTManager) GenerateToken(userID uuid.UUID, email string, expiry time.Duration) (string, error) {
+func (j *JWTManager) GenerateToken(userID uuid.UUID, email, roleSlug string, permissions []string, expiry time.Duration) (string, error) {
 	claims := JWTClaims{
-		UserID: userID,
-		Email:  email,
+		UserID:      userID,
+		Email:       email,
+		RoleSlug:    roleSlug,
+		Permissions: permissions,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiry)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -56,23 +60,23 @@ func (j *JWTManager) GenerateToken(userID uuid.UUID, email string, expiry time.D
 }
 
 // GenerateAccessToken generates an access token
-func (j *JWTManager) GenerateAccessToken(userID uuid.UUID, email string) (string, error) {
-	return j.GenerateToken(userID, email, j.accessExpiry)
+func (j *JWTManager) GenerateAccessToken(userID uuid.UUID, email, roleSlug string, permissions []string) (string, error) {
+	return j.GenerateToken(userID, email, roleSlug, permissions, j.accessExpiry)
 }
 
 // GenerateRefreshToken generates a refresh token
-func (j *JWTManager) GenerateRefreshToken(userID uuid.UUID, email string) (string, error) {
-	return j.GenerateToken(userID, email, j.refreshExpiry)
+func (j *JWTManager) GenerateRefreshToken(userID uuid.UUID, email, roleSlug string, permissions []string) (string, error) {
+	return j.GenerateToken(userID, email, roleSlug, permissions, j.refreshExpiry)
 }
 
 // GenerateTokenPair generates both access and refresh tokens
-func (j *JWTManager) GenerateTokenPair(userID uuid.UUID, email string) (accessToken, refreshToken string, err error) {
-	accessToken, err = j.GenerateAccessToken(userID, email)
+func (j *JWTManager) GenerateTokenPair(userID uuid.UUID, email, roleSlug string, permissions []string) (accessToken, refreshToken string, err error) {
+	accessToken, err = j.GenerateAccessToken(userID, email, roleSlug, permissions)
 	if err != nil {
 		return "", "", err
 	}
 
-	refreshToken, err = j.GenerateRefreshToken(userID, email)
+	refreshToken, err = j.GenerateRefreshToken(userID, email, roleSlug, permissions)
 	if err != nil {
 		return "", "", err
 	}
@@ -119,3 +123,22 @@ func (j *JWTManager) ExtractEmail(tokenString string) (string, error) {
 	}
 	return claims.Email, nil
 }
+
+// ExtractRoleSlug extracts role slug from token string
+func (j *JWTManager) ExtractRoleSlug(tokenString string) (string, error) {
+	claims, err := j.ValidateToken(tokenString)
+	if err != nil {
+		return "", err
+	}
+	return claims.RoleSlug, nil
+}
+
+// ExtractPermissions extracts permissions from token string
+func (j *JWTManager) ExtractPermissions(tokenString string) ([]string, error) {
+	claims, err := j.ValidateToken(tokenString)
+	if err != nil {
+		return nil, err
+	}
+	return claims.Permissions, nil
+}
+

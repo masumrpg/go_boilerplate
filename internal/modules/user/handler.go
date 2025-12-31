@@ -19,6 +19,7 @@ type UserHandler interface {
 	UpdateUser(c *fiber.Ctx) error
 	DeleteUser(c *fiber.Ctx) error
 	GetCurrentUser(c *fiber.Ctx) error
+	AssignRole(c *fiber.Ctx) error
 }
 
 // userHandler implements UserHandler interface
@@ -104,13 +105,21 @@ func (h *userHandler) UpdateUser(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid auth user ID", err)
 	}
 
-	// Check if user is updating their own profile
-	if authUserID != userID {
+	// Get validated body from context
+	validatedBody := c.Locals("validatedBody").(*userdto.UpdateUserRequest)
+
+	// Check if user is updating their own profile or has admin role
+	roleSlug, hasRole := sharedmiddleware.GetRoleSlugFromContext(c)
+	isAdmin := hasRole && (roleSlug == "admin" || roleSlug == "super_admin")
+
+	if authUserID != userID && !isAdmin {
 		return utils.ErrorResponse(c, fiber.StatusForbidden, "You can only update your own profile", nil)
 	}
 
-	// Get validated body from context
-	validatedBody := c.Locals("validatedBody").(*userdto.UpdateUserRequest)
+	// Non-admin users cannot update their own role
+	if authUserID == userID && !isAdmin && validatedBody.RoleID != nil {
+		return utils.ErrorResponse(c, fiber.StatusForbidden, "You cannot update your own role", nil)
+	}
 
 	// Update user
 	user, err := h.service.UpdateUser(userID, validatedBody)
@@ -157,4 +166,24 @@ func (h *userHandler) GetCurrentUser(c *fiber.Ctx) error {
 	}
 
 	return utils.SuccessResponse(c, fiber.StatusOK, user, "User profile retrieved successfully")
+}
+
+// AssignRole assigns a role to a user
+func (h *userHandler) AssignRole(c *fiber.Ctx) error {
+	// Get user ID from params
+	userID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid user ID", err)
+	}
+
+	// Get validated body from context
+	validatedBody := c.Locals("validatedBody").(*userdto.AssignRoleRequest)
+
+	// Assign role
+	user, err := h.service.AssignRole(userID, validatedBody.RoleID)
+	if err != nil {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Failed to assign role", err)
+	}
+
+	return utils.SuccessResponse(c, fiber.StatusOK, user, "Role assigned successfully")
 }

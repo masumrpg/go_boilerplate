@@ -10,6 +10,7 @@ import (
 	"go_boilerplate/internal/modules/auth/dto"
 	oauthModule "go_boilerplate/internal/modules/oauth"
 	oauthdto "go_boilerplate/internal/modules/oauth/dto"
+	roleModule "go_boilerplate/internal/modules/role"
 	"go_boilerplate/internal/shared/config"
 	"go_boilerplate/internal/shared/database"
 	"go_boilerplate/internal/shared/middleware"
@@ -41,7 +42,18 @@ func main() {
 	logger.Info("Database connected successfully")
 
 	// 4. Run database migrations
+
+	// Step 1: Rename tables (drop old tables) - ONLY IN DEVELOPMENT
+	if cfg.Server.IsDevelopment() {
+		logger.Info("Running in development mode - dropping old tables...")
+		if err := database.RenameTables(db, logger); err != nil {
+			logger.Warnf("Failed to rename tables: %v", err)
+		}
+	}
+
+	// Step 2: AutoMigrate models with new table names
 	migrationModels := []any{
+		&roleModule.Role{},
 		&userModule.User{},
 		&dto.RefreshToken{},
 		&oauthdto.OAuthAccount{},
@@ -49,6 +61,20 @@ func main() {
 
 	if err := database.AutoMigrate(db, migrationModels, logger); err != nil {
 		logger.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	// Step 3: Seed initial roles
+	roleRepo := roleModule.NewRoleRepository(db)
+	roleService := roleModule.NewRoleService(roleRepo)
+	if err := roleService.SeedInitialRoles(); err != nil {
+		logger.Warnf("Failed to seed initial roles: %v", err)
+	} else {
+		logger.Info("✓ Initial roles seeded successfully")
+	}
+
+	// Step 4: Seed SuperAdmin user
+	if err := database.SeedSuperAdmin(db, cfg, logger); err != nil {
+		logger.Warnf("Failed to seed SuperAdmin user: %v", err)
 	}
 
 	// 5. Create Fiber app
@@ -101,6 +127,10 @@ func main() {
 	// User routes (CRUD operations)
 	userModule.RegisterRoutes(app, db, cfg, logger)
 	logger.Info("✓ User routes registered")
+
+	// Role routes (manage roles - SuperAdmin only)
+	roleModule.RegisterRoutes(app, db, cfg, logger)
+	logger.Info("✓ Role routes registered")
 
 	// OAuth routes (Google, GitHub)
 	oauthModule.RegisterRoutes(app, db, cfg, logger)

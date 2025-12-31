@@ -9,10 +9,10 @@ import (
 
 // OAuthResponse represents an OAuth authentication response
 type OAuthResponse struct {
-	AccessToken  string              `json:"access_token"`
-	RefreshToken string              `json:"refresh_token"`
-	ExpiresIn    int64               `json:"expires_in"`
-	User         dto.UserResponse    `json:"user"`
+	AccessToken  string                    `json:"access_token"`
+	RefreshToken string                    `json:"refresh_token"`
+	ExpiresIn    int64                     `json:"expires_in"`
+	User         dto.UserRoleResponse      `json:"user"`
 }
 
 // OAuthUserInfo represents user information from OAuth provider
@@ -38,5 +38,5 @@ type OAuthAccount struct {
 
 // TableName specifies the table name for OAuthAccount model
 func (OAuthAccount) TableName() string {
-	return "oauth_accounts"
+	return "t_oauth_accounts"
 }

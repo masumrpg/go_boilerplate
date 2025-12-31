@@ -9,6 +9,7 @@ import (
 type UserRepository interface {
 	Create(user *User) error
 	FindByID(id uuid.UUID) (*User, error)
+	FindByIDWithRole(id uuid.UUID) (*User, error)
 	FindByEmail(email string) (*User, error)
 	FindAll(offset, limit int) ([]User, int64, error)
 	Update(user *User) error
@@ -36,6 +37,16 @@ func (r *userRepository) Create(user *User) error {
 func (r *userRepository) FindByID(id uuid.UUID) (*User, error) {
 	var user User
 	err := r.db.Where("id = ?", id).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// FindByIDWithRole finds a user by ID and eagerly loads their role
+func (r *userRepository) FindByIDWithRole(id uuid.UUID) (*User, error) {
+	var user User
+	err := r.db.Preload("Role").Where("id = ?", id).First(&user).Error
 	if err != nil {
 		return nil, err
 	}

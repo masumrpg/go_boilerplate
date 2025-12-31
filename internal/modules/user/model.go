@@ -5,6 +5,7 @@ import (
 
 	"go_boilerplate/internal/shared/utils"
 	"go_boilerplate/internal/modules/user/dto"
+	roleModule "go_boilerplate/internal/modules/role"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -12,18 +13,20 @@ import (
 
 // User represents a user in the system
 type User struct {
-	ID        uuid.UUID      `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	Name      string         `json:"name" gorm:"type:varchar(100);not null"`
-	Email     string         `json:"email" gorm:"type:varchar(255);uniqueIndex;not null"`
-	Password  string         `json:"-" gorm:"type:varchar(255);not null"` // Never expose password in JSON
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"` // Soft delete support
+	ID        uuid.UUID              `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	Name      string                 `json:"name" gorm:"type:varchar(100);not null"`
+	Email     string                 `json:"email" gorm:"type:varchar(255);uniqueIndex;not null"`
+	Password  string                 `json:"-" gorm:"type:varchar(255);not null"` // Never expose password in JSON
+	RoleID    uuid.UUID              `json:"role_id" gorm:"type:uuid;not null"`   // Foreign key to m_roles
+	Role      *roleModule.Role       `json:"role,omitempty" gorm:"foreignKey:RoleID"` // Role relationship (eager load)
+	CreatedAt time.Time              `json:"created_at"`
+	UpdatedAt time.Time              `json:"updated_at"`
+	DeletedAt gorm.DeletedAt         `json:"-" gorm:"index"` // Soft delete support
 }
 
 // TableName specifies the table name for User model
 func (User) TableName() string {
-	return "users"
+	return "m_users"
 }
 
 // BeforeCreate hook runs before creating a new user
@@ -54,4 +57,26 @@ func (u *User) ToResponse() dto.UserResponse {
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: u.UpdatedAt,
 	}
+}
+
+// ToResponseWithRole converts User to UserResponse with role information
+func (u *User) ToResponseWithRole() dto.UserRoleResponse {
+	response := dto.UserRoleResponse{
+		ID:        u.ID,
+		Name:      u.Name,
+		Email:     u.Email,
+		CreatedAt: u.CreatedAt,
+		UpdatedAt: u.UpdatedAt,
+	}
+
+	if u.Role != nil {
+		response.Role = &dto.RoleInfo{
+			ID:          u.Role.ID,
+			Name:        u.Role.Name,
+			Slug:        u.Role.Slug,
+			Permissions: []string(u.Role.Permissions),
+		}
+	}
+
+	return response
 }

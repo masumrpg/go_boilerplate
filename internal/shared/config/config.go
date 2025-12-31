@@ -12,12 +12,13 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	JWT      JWTConfig
-	OAuth    OAuthConfig
-	Email    EmailConfig
-	Logger   LoggerConfig
+	Server     ServerConfig
+	Database   DatabaseConfig
+	JWT        JWTConfig
+	OAuth      OAuthConfig
+	Email      EmailConfig
+	Logger     LoggerConfig
+	SuperAdmin SuperAdminConfig
 }
 
 // ServerConfig holds server configuration
@@ -85,6 +86,13 @@ type LoggerConfig struct {
 	Format string `mapstructure:"LOG_FORMAT"` // json, text
 }
 
+// SuperAdminConfig holds default SuperAdmin account configuration
+type SuperAdminConfig struct {
+	Email    string `mapstructure:"SUPERADMIN_EMAIL"`
+	Password string `mapstructure:"SUPERADMIN_PASSWORD"`
+	Name     string `mapstructure:"SUPERADMIN_NAME"`
+}
+
 // LoadConfig loads configuration from environment variables
 func LoadConfig() (*Config, error) {
 	// Load .env file if exists
@@ -143,8 +151,13 @@ func LoadConfig() (*Config, error) {
 			Enabled:      getBoolEnv("EMAIL_ENABLED", false),
 		},
 		Logger: LoggerConfig{
-			Level:  getEnv("a", "debug"),
+			Level:  getEnv("LOG_LEVEL", "debug"),
 			Format: getEnv("LOG_FORMAT", "json"),
+		},
+		SuperAdmin: SuperAdminConfig{
+			Name:     getEnv("SUPERADMIN_NAME", "Super Admin"),
+			Email:    getEnv("SUPERADMIN_EMAIL", "superadmin@boilerplate.com"),
+			Password: getEnv("SUPERADMIN_PASSWORD", "SuperAdmin123!"),
 		},
 	}
 

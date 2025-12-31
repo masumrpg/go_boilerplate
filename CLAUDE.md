@@ -41,12 +41,13 @@ cmd/api/main.go          # Application entry point
 internal/
   shared/                # Shared components used across modules
     config/              # Configuration loading (Viper + .env)
-    database/            # Database connection (GORM + PostgreSQL)
-    middleware/          # Global middleware (auth, logger, CORS, validator)
+    database/            # Database connection (GORM + PostgreSQL) + migrations
+    middleware/          # Global middleware (auth, logger, CORS, validator, RBAC)
     utils/               # Utility functions (JWT, hash, response, logger, validator)
   modules/               # Feature modules
     auth/                # Authentication (login, register, refresh tokens)
     user/                # User management (CRUD)
+    role/                # Role and permission management (RBAC)
     email/               # Email service (gomail)
     oauth/               # OAuth2 integration (Google, GitHub)
 ```
@@ -84,11 +85,13 @@ The application bootstraps in `cmd/api/main.go`:
 1. Load config (`config.LoadConfig()`)
 2. Initialize logger
 3. Initialize database connection
-4. Run auto-migrations
-5. Create Fiber app
-6. Register global middleware (logger, CORS, recover)
-7. Register module routes (each module receives `db`, `cfg`, `logger`)
-8. Start server with graceful shutdown
+4. Run table rename (development only - drops old tables)
+5. Run auto-migrations
+6. Seed initial roles (SuperAdmin, Admin, User)
+7. Create Fiber app
+8. Register global middleware (logger, CORS, recover)
+9. Register module routes (each module receives `db`, `cfg`, `logger`)
+10. Start server with graceful shutdown
 
 Each module's `RegisterRoutes()` function creates its own dependency chain:
 - Repository → Service → Handler → Routes
@@ -98,15 +101,166 @@ Each module's `RegisterRoutes()` function creates its own dependency chain:
 ```
 HTTP Request → Global Middleware → Route Middleware → Handler → Service → Repository → Database
   ↓
-Logger → CORS → JWT Auth → Body Validator → Parse/Validate → Business Logic → Query → Response
+Logger → CORS → JWT Auth → RBAC Check → Body Validator → Parse/Validate → Business Logic → Query → Response
 ```
 
 ### Middleware Usage
 
 - **BodyValidator**: Validates request against DTO struct (stores validated body in `c.Locals("validatedBody")`)
 - **JWTAuth**: Protects routes by validating JWT tokens from `Authorization` header
+- **RequireRole**: Checks if authenticated user has any of the specified roles (admin, super_admin)
+- **RequirePermission**: Checks if authenticated user has a specific permission (users.create, roles.update)
 - **HTTPLogger**: Logs all HTTP requests/responses
 - **CORS**: Handles cross-origin requests
+
+## RBAC System (Role-Based Access Control)
+
+### Overview
+
+The API implements a comprehensive RBAC system with:
+- **3 Default Roles**: SuperAdmin, Admin, User
+- **Granular Permissions**: Format `resource.action` (e.g., `users.create`, `roles.delete`)
+- **Wildcard Permission**: `*` grants full access (SuperAdmin only)
+- **Role Storage**: Separate `m_roles` table with foreign key to `m_users`
+- **Stateless Auth**: Role and permission data embedded in JWT tokens
+- **JSONB Storage**: Permissions stored as JSONB type in PostgreSQL for efficient querying
+
+### Default Roles and Permissions
+
+**SuperAdmin** (`slug: super_admin`)
+- Permissions: `["*"]` (full access to everything)
+- Can: Manage all resources, assign roles, manage roles
+
+**Admin** (`slug: admin`)
+- Permissions: `["users.create", "users.read", "users.update", "users.delete", "roles.read", "roles.assign"]`
+- Can: Create/read/update/delete users, read roles, assign roles to users
+- Cannot: Manage roles (create/update/delete roles)
+
+**User** (`slug: user`)
+- Permissions: `["users.read", "users.update"]` (own profile only)
+- Can: Read and update own profile
+- Cannot: Access other users, manage roles, perform admin operations
+
+### Using RBAC Middleware
+
+**RequireRole - Protect routes by role:**
+```go
+// Only SuperAdmin can access
+protected.Use(middleware.RequireRole(cfg, "super_admin"))
+
+// Admin or SuperAdmin can access
+protected.Use(middleware.RequireRole(cfg, "admin", "super_admin"))
+```
+
+**RequirePermission - Protect routes by permission:**
+```go
+// Only users with users.create permission can access
+protected.Use(middleware.RequirePermission(cfg, "users.create"))
+```
+
+**Helper Functions:**
+```go
+// Get user role from context
+roleSlug, ok := middleware.GetRoleSlugFromContext(c)
+
+// Get user permissions from context
+permissions, ok := middleware.GetPermissionsFromContext(c)
+
+// Get user ID from context
+userID, ok := middleware.GetUserIDFromContext(c)
+```
+
+### JWT Claims Structure
+
+JWT tokens include role information:
+```json
+{
+  "user_id": "uuid",
+  "email": "user@example.com",
+  "role_slug": "admin",
+  "permissions": ["users.create", "users.read", "users.update"],
+  "exp": 1234567890
+}
+```
+
+### Role Assignment Rules
+
+The API enforces strict role assignment rules to maintain security:
+
+**Registration (POST /api/v1/auth/register):**
+- Automatically assigns "user" role
+- Cannot specify role during registration
+- All new users start with basic "user" permissions
+
+**Create User (POST /api/v1/users) - Admin/SuperAdmin only:**
+- Can optionally specify `role_id` in request body
+- Only allows creating users with "user" or "admin" roles
+- Cannot create users with "super_admin" role via this endpoint
+- If `role_id` is not provided, defaults to "user" role
+- Example: `{"name": "John", "email": "john@example.com", "password": "pass123", "role_id": "uuid-here"}`
+
+**Update User (PUT /api/v1/users/:id):**
+- Admin/SuperAdmin can update `role_id` field
+- Only allows updating role to "user" or "admin"
+- Regular users cannot update their own role (blocked at handler level)
+- Non-admin users can only update their name and email
+
+**Assign Role (PUT /api/v1/users/:id/role) - SuperAdmin only:**
+- Can assign any role including "super_admin"
+- This is the ONLY way to grant super_admin role to a user
+- Requires role UUID in request body
+
+**Summary Table:**
+
+| Endpoint | Access Level | Can Assign "user"? | Can Assign "admin"? | Can Assign "super_admin"? |
+|----------|--------------|-------------------|---------------------|---------------------------|
+| **POST /api/v1/auth/register** | Public | ✅ (auto) | ❌ | ❌ |
+| **POST /api/v1/users** | Admin/SuperAdmin | ✅ (default) | ✅ (optional) | ❌ (blocked) |
+| **PUT /api/v1/users/:id** | All users* | ✅ (admin only) | ✅ (admin only) | ❌ (blocked) |
+| **PUT /api/v1/users/:id/role** | SuperAdmin only | ✅ | ✅ | ✅ |
+
+*Regular users can update their own profile but NOT their role. Only Admin/SuperAdmin can update roles.
+
+### Protected Routes Summary
+
+**Public Routes:**
+- `/api/v1/auth/register` - User registration
+- `/api/v1/auth/login` - User login
+- `/api/v1/auth/refresh` - Token refresh
+- `/api/v1/oauth/*` - OAuth redirects and callbacks
+
+**Authenticated Routes (Any User):**
+- `/api/v1/users/me` - Get/update own profile
+- `/api/v1/users/:id` (PUT) - Update user (self or admin)
+
+**Admin/SuperAdmin Routes:**
+- `/api/v1/users` (GET) - List all users
+- `/api/v1/users` (POST) - Create user
+- `/api/v1/users/:id` (DELETE) - Delete user
+- `/api/v1/roles` (GET) - List all roles
+
+**SuperAdmin Only Routes:**
+- `/api/v1/users/:id/role` (PUT) - Assign role to user
+- `/api/v1/roles` (POST) - Create role
+- `/api/v1/roles/:id` (PUT/DELETE) - Update/delete role
+
+## Database Table Naming Convention
+
+Tables use prefixes to indicate their type:
+
+**Master Tables** (prefix `m_`):
+- `m_users` - User accounts
+- `m_roles` - Role definitions
+
+**Transaction Tables** (prefix `t_`):
+- `t_refresh_tokens` - JWT refresh tokens
+- `t_oauth_accounts` - OAuth provider links
+
+**Migration Strategy:**
+- In development mode, old tables (`users`, `oauth_accounts`, `refresh_tokens`) are dropped on startup
+- New tables with prefixes are created automatically via GORM AutoMigrate
+- This is controlled by the `RenameTables()` function in `internal/shared/database/migration.go`
+- Only runs when `SERVER_MODE=development`
 
 ### Shared Components
 
@@ -141,6 +295,17 @@ Copy `.env.example` to `.env` and configure:
 - **JWT_REFRESH_EXPIRY**: Refresh token duration (default: 24h)
 - **OAUTH_GOOGLE_CLIENT_ID/SECRET**: Google OAuth credentials
 - **SMTP_HOST/PORT/USER/PASSWORD**: Email configuration
+- **SUPERADMIN_NAME**: Default SuperAdmin account name (default: "Super Admin")
+- **SUPERADMIN_EMAIL**: Default SuperAdmin email (default: "superadmin@boilerplate.com")
+- **SUPERADMIN_PASSWORD**: Default SuperAdmin password (default: "SuperAdmin123!")
+
+### SuperAdmin Account
+
+The application automatically creates/updates a default SuperAdmin account on startup using credentials from `.env`:
+- If the account doesn't exist, it will be created
+- If the account exists, password and details will be updated from `.env` config
+- Always assigned the "super_admin" role with full `["*"]` permissions
+- **Important**: Change the default password after first login in production!
 
 ## Adding a New Module
 
@@ -177,14 +342,28 @@ Copy `.env.example` to `.env` and configure:
 ## Current Modules
 
 - **auth**: `/api/v1/auth/*` (register, login, refresh, logout)
-- **user**: `/api/v1/users/*` (CRUD, requires JWT)
-- **oauth**: OAuth callbacks for Google/GitHub login
-- **email**: Email sending service (used by auth module)
+- **user**: `/api/v1/users/*` (CRUD with role-based access control)
+- **role**: `/api/v1/roles/*` (role management, SuperAdmin only)
+- **oauth**: `/api/v1/oauth/*` (Google/GitHub OAuth)
+- **email**: Email sending service (used by auth and oauth modules)
 
 ## Notes
 
 - All user routes except `/api/v1/auth/*` require JWT authentication
+- RBAC middleware enforces role and permission-based access control
 - Email module has no repository (calls external SMTP service)
 - Config automatically uses default JWT secret in development mode
 - Migrations run automatically on startup via `database.AutoMigrate()`
+- Initial roles are seeded automatically on first startup
+- Table rename migration runs in development mode to drop old tables
 - Static files can be served from `public/` directory
+
+## Feature Flags
+
+Optional features can be enabled/disabled via environment variables:
+
+- **OAUTH_GOOGLE_ENABLED**: Enable/disable Google OAuth (default: false)
+- **OAUTH_GOOGLE_SEND_WELCOME_EMAIL**: Send welcome email after Google OAuth (default: false)
+- **OAUTH_GITHUB_ENABLED**: Enable/disable GitHub OAuth (default: false)
+- **OAUTH_GITHUB_SEND_WELCOME_EMAIL**: Send welcome email after GitHub OAuth (default: false)
+- **EMAIL_ENABLED**: Master switch for email functionality (default: false)

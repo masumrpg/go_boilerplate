@@ -4,6 +4,7 @@ import (
 	"go_boilerplate/internal/shared/config"
 	sharedmiddleware "go_boilerplate/internal/shared/middleware"
 	"go_boilerplate/internal/modules/user"
+	"go_boilerplate/internal/modules/role"
 	"go_boilerplate/internal/modules/auth/dto"
 	"go_boilerplate/internal/modules/email"
 
@@ -14,9 +15,12 @@ import (
 
 // RegisterRoutes registers all auth-related routes
 func RegisterRoutes(app *fiber.App, db *gorm.DB, cfg *config.Config, logger *logrus.Logger) {
-	// Initialize user service (auth service depends on it)
+	// Initialize repositories
 	userRepo := user.NewUserRepository(db)
-	userService := user.NewUserService(userRepo)
+	roleRepo := role.NewRoleRepository(db)
+
+	// Initialize user service with role repository
+	userService := user.NewUserServiceWithRole(userRepo, roleRepo)
 
 	// Initialize email service (optional, will check before sending)
 	var emailService email.EmailService

@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// UserResponse represents a user response (without password)
+// UserResponse represents a user response (without password and role)
 type UserResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
@@ -15,10 +15,28 @@ type UserResponse struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// UserRoleResponse represents a user response with role information
+type UserRoleResponse struct {
+	ID        uuid.UUID  `json:"id"`
+	Name      string     `json:"name"`
+	Email     string     `json:"email"`
+	Role      *RoleInfo  `json:"role"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
+
+// RoleInfo represents simplified role information
+type RoleInfo struct {
+	ID          uuid.UUID `json:"id"`
+	Name        string    `json:"name"`
+	Slug        string    `json:"slug"`
+	Permissions []string  `json:"permissions"`
+}
+
 // UsersResponse represents a paginated list of users
 type UsersResponse struct {
 	Users []UserResponse `json:"users"`
-	Meta  PaginationMeta `json:"meta"`
+	Meta  PaginationMeta  `json:"meta"`
 }
 
 // PaginationMeta contains pagination metadata
@@ -31,7 +49,8 @@ type PaginationMeta struct {
 
 // AuthResponse represents authentication response with tokens
 type AuthResponse struct {
-	AccessToken  string       `json:"access_token"`
-	RefreshToken string       `json:"refresh_token"`
-	User         UserResponse `json:"user"`
+	AccessToken  string              `json:"access_token"`
+	RefreshToken string              `json:"refresh_token"`
+	User         UserRoleResponse    `json:"user"`
 }
+
