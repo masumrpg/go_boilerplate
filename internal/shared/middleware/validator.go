@@ -7,7 +7,7 @@ import (
 )
 
 // BodyValidator validates request body against a struct
-func BodyValidator(v interface{}) fiber.Handler {
+func BodyValidator(v any) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Parse body
 		if err := c.BodyParser(v); err != nil {

@@ -19,7 +19,7 @@ func NewValidator() *Validator {
 }
 
 // ValidateStruct validates a struct
-func (v *Validator) ValidateStruct(s interface{}) error {
+func (v *Validator) ValidateStruct(s any) error {
 	return v.validate.Struct(s)
 }
 

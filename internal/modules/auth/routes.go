@@ -5,6 +5,7 @@ import (
 	sharedmiddleware "go_boilerplate/internal/shared/middleware"
 	"go_boilerplate/internal/modules/user"
 	"go_boilerplate/internal/modules/auth/dto"
+	"go_boilerplate/internal/modules/email"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/sirupsen/logrus"
@@ -17,8 +18,14 @@ func RegisterRoutes(app *fiber.App, db *gorm.DB, cfg *config.Config, logger *log
 	userRepo := user.NewUserRepository(db)
 	userService := user.NewUserService(userRepo)
 
+	// Initialize email service (optional, will check before sending)
+	var emailService email.EmailService
+	if cfg.Email.Enabled {
+		emailService = email.NewEmailService(cfg, logger)
+	}
+
 	// Initialize auth service
-	authService := NewAuthService(userService, db, cfg)
+	authService := NewAuthService(userService, db, cfg, emailService)
 
 	// Initialize auth handler
 	authHandler := NewAuthHandler(authService)

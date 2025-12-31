@@ -4,333 +4,187 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Golang modular web application boilerplate** using Fiber v2 framework with a **feature-based modular architecture**. The project emphasizes clear separation of concerns with a strict layered structure within each module.
+This is a modular Golang REST API boilerplate using Fiber v2 framework with a feature-based architecture. The codebase follows a clean layered architecture pattern with clear separation between shared components and feature modules.
 
-**Current State**: This is a newly initialized project with architectural documentation but no implementation code yet. The structure below is planned and documented in README.md (in Indonesian).
-
-## Common Development Commands
+## Build and Run Commands
 
 ```bash
-# Build (once cmd/api/main.go exists)
-go build -o bin/app ./cmd/api
-
-# Run application
+# Run the application (development)
 go run cmd/api/main.go
 
-# Run all tests
-go test ./...
+# Build the binary
+go build -o bin/api cmd/api/main.go
+
+# Run tests
+go test ./... -v
+
+# Run tests for specific package
+go test ./internal/modules/user -v
+
+# Run single test
+go test ./internal/modules/user -run TestGetProfile -v
 
 # Run tests with coverage
-go test -cover ./...
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
+go test ./... -cover
 
-# Run tests in specific package
-go test ./internal/modules/user/...
-
-# Run specific test function
-go test -v ./internal/modules/user/... -run TestLogin
-
-# Dependency management
+# Install dependencies
 go mod download
 go mod tidy
-go mod verify
-
-# Static analysis
-go vet ./...
-gofmt -l .
 ```
 
-**Note**: No Makefile or build scripts exist yet. Use standard Go commands.
-
-## Architecture Overview
+## Architecture
 
 ### Directory Structure
 
 ```
-cmd/api/main.go          # Application entry point (initialize deps, register routes, start server)
+cmd/api/main.go          # Application entry point
 internal/
-├── shared/              # Cross-cutting concerns used by all modules
-│   ├── config/         # Configuration management (Viper, environment-based)
-│   ├── database/       # Database connection (GORM + PostgreSQL, connection pooling)
-│   ├── middleware/     # HTTP middleware (auth, logger, CORS, validator)
-│   └── utils/          # Utility functions (JWT, hash, validator, response, logger)
-└── modules/            # Feature modules (self-contained business features)
-    ├── auth/           # Authentication & authorization
-    ├── user/           # User management
-    ├── email/          # Email notifications
-    └── oauth/          # Social login (Google, GitHub)
-docs/                   # Swagger/OpenAPI documentation
-pkg/                    # Public packages (optional, for external reuse)
+  shared/                # Shared components used across modules
+    config/              # Configuration loading (Viper + .env)
+    database/            # Database connection (GORM + PostgreSQL)
+    middleware/          # Global middleware (auth, logger, CORS, validator)
+    utils/               # Utility functions (JWT, hash, response, logger, validator)
+  modules/               # Feature modules
+    auth/                # Authentication (login, register, refresh tokens)
+    user/                # User management (CRUD)
+    email/               # Email service (gomail)
+    oauth/               # OAuth2 integration (Google, GitHub)
 ```
 
-### Architectural Pattern
+### Module Pattern
 
-- **Feature-based modules**: Each business feature is a self-contained module
-- **Clean layers**: Handler → Service → Repository (strict separation)
-- **Dependency injection**: Constructor-based DI in main.go
-- **Interface-driven**: Each layer defines interfaces for testability
-- **DTO pattern**: Request/response DTOs for API contracts and data hiding
-
-## Module Structure (CRITICAL - Must Follow)
-
-Every module MUST follow this exact 7-file pattern:
+Each feature module follows this consistent structure:
 
 ```
 module-name/
-├── model.go           # Domain entity (GORM model with tags, relationships, hooks)
-├── repository.go      # Data access layer (interface + CRUD implementation)
-├── service.go         # Business logic layer (interface + implementation)
-├── handler.go         # HTTP request handlers (parse request, call service, format response)
-├── routes.go          # Route registration (register endpoints, apply middleware, DI)
-└── dto/
-    ├── request.go     # Input DTOs with validation tags
-    └── response.go    # Output DTOs (hide sensitive fields like password)
+  model.go         # GORM database entity
+  repository.go    # Data access layer (interface + implementation)
+  service.go       # Business logic layer (interface + implementation)
+  handler.go       # HTTP request handlers
+  routes.go        # Route registration with middleware
+  dto/
+    request.go     # Input validation DTOs
+    response.go    # Output DTOs
 ```
 
-**Example**: Creating a new module
-```bash
-mkdir -p internal/modules/payment/dto
-cd internal/modules/payment
-touch model.go repository.go service.go handler.go routes.go
-touch dto/request.go dto/response.go
-```
+### Layer Responsibilities
 
-## Layer Responsibilities
+- **model.go**: GORM entity with struct tags, relationships, and hooks
+- **repository.go**: CRUD operations, database queries only (no business logic)
+- **service.go**: Business logic, orchestrates repositories, transforms data
+- **handler.go**: HTTP parsing, calls service, formats responses
+- **routes.go**: Registers routes, applies middleware, dependency injection
+- **dto/request.go**: Input structs with validation tags
+- **dto/response.go**: Output structs, hides sensitive fields
 
-### model.go
-- Define database entity/schema with GORM struct tags
-- Table relationships (belongs to, has many, etc.)
-- GORM hooks (BeforeCreate, AfterUpdate, etc.)
-- **NO business logic**
+### Dependency Injection Flow
 
-### repository.go
-- Interface definition for data access
-- CRUD operations (Create, FindByID, Update, Delete, FindAll)
-- Database queries using GORM
-- **NO business logic** - only data access
+The application bootstraps in `cmd/api/main.go`:
 
-### service.go
-- Interface definition for business operations
-- Business logic implementation
-- Orchestrate multiple repositories if needed
-- Call external services (email, OAuth, etc.)
-- Transform domain models to DTOs
-- **NO HTTP or database-specific code**
+1. Load config (`config.LoadConfig()`)
+2. Initialize logger
+3. Initialize database connection
+4. Run auto-migrations
+5. Create Fiber app
+6. Register global middleware (logger, CORS, recover)
+7. Register module routes (each module receives `db`, `cfg`, `logger`)
+8. Start server with graceful shutdown
 
-### handler.go
-- Parse HTTP request and extract parameters
-- Validate input using DTOs
-- Call service methods
-- Format and return HTTP response
-- Handle HTTP-specific errors
-- **NO business logic** - delegate to service
+Each module's `RegisterRoutes()` function creates its own dependency chain:
+- Repository → Service → Handler → Routes
 
-### routes.go
-- Register routes for the module
-- Apply middleware (JWT auth, validation, etc.)
-- Group related endpoints
-- Dependency injection: receive dependencies from main.go and wire them together
-- Example pattern:
-  ```go
-  func RegisterRoutes(app *fiber.App, db *gorm.DB, cfg *config.Config) {
-      userRepo := repository.NewUserRepository(db)
-      userService := service.NewUserService(userRepo)
-      userHandler := handler.NewUserHandler(userService)
-
-      api := app.Group("/api/v1")
-      api.Post("/users", userHandler.CreateUser)
-      api.Get("/users/:id", middleware.AuthRequired, userHandler.GetUser)
-  }
-  ```
-
-### dto/request.go
-- Input validation structs with validation tags
-- Request body parsing
-- Example:
-  ```go
-  type CreateUserRequest struct {
-      Name  string `json:"name" validate:"required,min=3,max=100"`
-      Email string `json:"email" validate:"required,email"`
-  }
-  ```
-
-### dto/response.go
-- Output format structs
-- Hide sensitive fields (password, tokens, etc.)
-- Example:
-  ```go
-  type UserResponse struct {
-      ID    uuid.UUID `json:"id"`
-      Name  string    `json:"name"`
-      Email string    `json:"email"`
-      // Password is intentionally omitted
-  }
-  ```
-
-## Request Flow
+### Request Flow
 
 ```
-HTTP Request
-    ↓
-Global Middleware (Logger, CORS)
-    ↓
-Fiber Router (Route Matching)
-    ↓
-Route-specific Middleware (JWT Auth, Validator)
-    ↓
-Handler Layer
-    ├─ Parse Request Body → DTO
-    ├─ Validate Input
-    └─ Call Service
-         ↓
-Service Layer
-    ├─ Execute Business Logic
-    ├─ Call Repository (or multiple repositories)
-    ├─ Transform Domain Models → DTOs
-    └─ Call External Services (Email, OAuth)
-         ↓
-Repository Layer
-    ├─ Execute GORM Queries
-    └─ Return Domain Models
-         ↓
-Database (PostgreSQL via GORM)
+HTTP Request → Global Middleware → Route Middleware → Handler → Service → Repository → Database
+  ↓
+Logger → CORS → JWT Auth → Body Validator → Parse/Validate → Business Logic → Query → Response
 ```
 
-## Naming Conventions
+### Middleware Usage
 
-### Files
-- Use singular nouns: `model.go` (User, Product, Order)
+- **BodyValidator**: Validates request against DTO struct (stores validated body in `c.Locals("validatedBody")`)
+- **JWTAuth**: Protects routes by validating JWT tokens from `Authorization` header
+- **HTTPLogger**: Logs all HTTP requests/responses
+- **CORS**: Handles cross-origin requests
 
-### Interfaces and Structs
-- **Interface**: `UserRepository`, `UserService` (PascalCase, exported)
-- **Implementation**: `userRepository`, `userService` (camelCase, private)
-- **Constructor**: `NewUserRepository()`, `NewUserService()`, `NewUserHandler()`
+### Shared Components
 
-### Methods
-- **Repository layer**: `Create`, `FindByID`, `Update`, `Delete`, `FindAll`, `FindByEmail`
-- **Service layer**: Business-specific names (`GetUserProfile`, `CreateOrder`, `ProcessPayment`, `AuthenticateUser`)
-- **Handler layer**: HTTP verb-like (`GetUser`, `CreateUser`, `UpdateUser`, `DeleteUser`)
+**Config** (`internal/shared/config/config.go`)
+- Loads from `.env` file using godotenv
+- Struct with nested configs: Server, Database, JWT, OAuth, Email, Logger
+- Provides `GetDSN()` for PostgreSQL connection string
+- Validates required fields based on environment mode
 
-## Dependency Injection Pattern
+**Database** (`internal/shared/database/connection.go`)
+- GORM with PostgreSQL driver
+- Connection pooling: MaxIdleConns=10, MaxOpenConns=100
+- Auto-migration support via `AutoMigrate()`
+- Graceful connection closing
 
-Use **constructor-based dependency injection** in `main.go`:
+**Utils**:
+- `jwt.go`: Generate and validate JWT tokens
+- `hash.go`: Password hashing with bcrypt
+- `response.go`: Standardized JSON response format
+- `validator.go`: Struct validation wrapper around go-playground/validator
+- `logger.go`: Logrus initialization with config-based level/format
 
-```go
-// 1. Initialize shared components
-cfg := config.Load()
-db := database.Connect(cfg)
-logger := logger.New(cfg)
+## Configuration
 
-// 2. Create Fiber app
-app := fiber.New()
+Copy `.env.example` to `.env` and configure:
 
-// 3. Register global middleware
-app.Use(middleware.Logger())
-app.Use(middleware.CORS())
+- **SERVER_PORT**: HTTP port (default: 3000)
+- **SERVER_MODE**: development/production/test
+- **DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME**: PostgreSQL connection
+- **JWT_SECRET**: Secret for token signing (required in production)
+- **JWT_ACCESS_EXPIRY**: Access token duration (default: 1h)
+- **JWT_REFRESH_EXPIRY**: Refresh token duration (default: 24h)
+- **OAUTH_GOOGLE_CLIENT_ID/SECRET**: Google OAuth credentials
+- **SMTP_HOST/PORT/USER/PASSWORD**: Email configuration
 
-// 4. Register module routes with DI
-user.RegisterRoutes(app, db, cfg, logger)
-auth.RegisterRoutes(app, db, cfg, logger)
-email.RegisterRoutes(app, db, cfg, logger)
+## Adding a New Module
 
-// 5. Start server
-app.Listen(":3000")
-```
+1. Create module directory: `internal/modules/newmodule/dto`
+2. Create files following the module pattern
+3. Implement interfaces with constructors (`NewRepository`, `NewService`, `NewHandler`)
+4. Create `RegisterRoutes()` function
+5. In `cmd/api/main.go`: import and call `newModule.RegisterRoutes(app, db, cfg, logger)`
+6. Add migrations if needed: include model in `migrationModels` slice
 
-Inside each module's `routes.go`:
-```go
-func RegisterRoutes(app *fiber.App, db *gorm.DB, cfg *config.Config, logger *logrus.Logger) {
-    // Wire dependencies: Repository → Service → Handler
-    userRepo := repository.NewUserRepository(db)
-    userService := service.NewUserService(userRepo)
-    userHandler := handler.NewUserHandler(userService)
+## Key Conventions
 
-    // Register routes
-    api := app.Group("/api/v1")
-    api.Post("/users", userHandler.CreateUser)
-    api.Get("/users/:id", userHandler.GetUser)
-}
-```
-
-## Module Development Workflow
-
-When creating a new module, follow this 7-step process:
-
-1. **Create Model** - Define GORM schema in `model.go`
-2. **Create Repository** - Define interface and implement CRUD operations
-3. **Create Service** - Define interface and implement business logic
-4. **Create DTOs** - Define request/response DTOs with validation
-5. **Create Handler** - Implement HTTP handlers
-6. **Create Routes** - Register endpoints and wire dependencies
-7. **Register in main.go** - Call the module's RegisterRoutes function
-
-## Shared Components
-
-### internal/shared/config/
-- Uses Viper for configuration management
-- Load configuration from environment variables
-- Provides type-safe config struct
-
-### internal/shared/database/
-- GORM + PostgreSQL connection pooling
-- Auto migration support
-- Connection management
-
-### internal/shared/middleware/
-- **auth.go**: JWT validation middleware
-- **logger.go**: HTTP request/response logging
-- **cors.go**: CORS configuration
-- **validator.go**: Request body validation
-
-### internal/shared/utils/
-- **jwt.go**: Generate & validate JWT tokens
-- **hash.go**: Password hashing with bcrypt
-- **validator.go**: Struct validation helper
-- **response.go**: Standardized JSON response format
-- **logger.go**: Logrus configuration
+- **Interfaces**: Named with `I` suffix (e.g., `UserService`, `UserRepository`)
+- **Implementations**: Private structs (e.g., `userService`) with `New*()` constructors
+- **Repository methods**: `FindByID`, `FindAll`, `Create`, `Update`, `Delete`
+- **Service methods**: Business-specific names (`GetProfile`, `CreateUser`)
+- **Handler methods**: HTTP verb-based (`GetUser`, `CreateUser`)
+- **Response format**: Always use `{"success": bool, "data": ..., "error": ...}` via `utils.SendResponse()`
+- **Validation**: Use struct tags (`validate:"required,email,min=6"`)
+- **UUID**: All entities use UUID primary keys
 
 ## Technology Stack
 
-- **Framework**: Fiber v2 (github.com/gofiber/fiber/v2)
+- **Framework**: Fiber v2
 - **ORM**: GORM + PostgreSQL
 - **Validation**: go-playground/validator/v10
 - **JWT**: golang-jwt/jwt/v5
-- **Config**: spf13/viper
+- **Config**: spf13/viper + joho/godotenv
 - **Logger**: sirupsen/logrus
 - **Email**: gopkg.in/gomail.v2
 - **OAuth**: golang.org/x/oauth2
 - **Testing**: stretchr/testify
 
-## Key Architectural Principles
+## Current Modules
 
-1. **Separation of Concerns**: Each layer has a single, well-defined responsibility
-2. **Module Independence**: Modules are self-contained and loosely coupled
-3. **Interface-Driven Design**: Use interfaces for testability and flexibility
-4. **DTO Pattern**: Never expose domain models directly to API; use DTOs
-5. **Dependency Injection**: Wire dependencies explicitly in main.go
-6. **No Layer Violations**: Handlers don't access database; services don't know about HTTP
+- **auth**: `/api/v1/auth/*` (register, login, refresh, logout)
+- **user**: `/api/v1/users/*` (CRUD, requires JWT)
+- **oauth**: OAuth callbacks for Google/GitHub login
+- **email**: Email sending service (used by auth module)
 
-## Testing Strategy
+## Notes
 
-- Test each layer in isolation
-- Mock dependencies using interfaces
-- Test business logic in service layer
-- Test HTTP handlers with test requests
-- Example test file: `service_test.go`, `handler_test.go`
-
-```go
-// Example: Mock repository for service testing
-type mockUserRepository struct {}
-func (m *mockUserRepository) FindByID(id uuid.UUID) (*User, error) {
-    // Return test data
-}
-```
-
-## Important Notes
-
-- README.md contains detailed architectural documentation in Indonesian
-- Original documentation includes Mermaid diagrams showing request flow, DI flow, and module interactions
-- This project uses Go 1.25.5
-- All JSON serialization uses bytedance/sonic (faster than standard JSON)
-- API documentation is generated using swaggo/swag
+- All user routes except `/api/v1/auth/*` require JWT authentication
+- Email module has no repository (calls external SMTP service)
+- Config automatically uses default JWT secret in development mode
+- Migrations run automatically on startup via `database.AutoMigrate()`
+- Static files can be served from `public/` directory

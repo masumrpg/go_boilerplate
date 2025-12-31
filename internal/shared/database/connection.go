@@ -52,7 +52,7 @@ func getLogLevel(cfg *config.Config) logger.LogLevel {
 }
 
 // setConnectionPoolSettings configures the database connection pool
-func setConnectionPoolSettings(sqlDB interface{}) {
+func setConnectionPoolSettings(sqlDB any) {
 	// Type assertion to access *sql.DB methods
 	type db interface {
 		SetMaxIdleConns(n int)

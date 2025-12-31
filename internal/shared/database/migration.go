@@ -10,7 +10,7 @@ import (
 )
 
 // AutoMigrate runs auto migration for given models
-func AutoMigrate(db *gorm.DB, models []interface{}, logger *logrus.Logger) error {
+func AutoMigrate(db *gorm.DB, models []any, logger *logrus.Logger) error {
 	logger.Info("Running database migrations...")
 
 	if err := db.AutoMigrate(models...); err != nil {

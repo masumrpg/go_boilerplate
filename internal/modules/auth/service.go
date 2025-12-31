@@ -7,6 +7,7 @@ import (
 	"go_boilerplate/internal/shared/config"
 	"go_boilerplate/internal/shared/utils"
 	"go_boilerplate/internal/modules/auth/dto"
+	"go_boilerplate/internal/modules/email"
 	"go_boilerplate/internal/modules/user"
 	userdto "go_boilerplate/internal/modules/user/dto"
 
@@ -24,14 +25,15 @@ type AuthService interface {
 
 // authService implements AuthService interface
 type authService struct {
-	userService user.UserService
-	jwtManager  *utils.JWTManager
-	db          *gorm.DB
-	cfg         *config.Config
+	userService  user.UserService
+	jwtManager   *utils.JWTManager
+	db           *gorm.DB
+	cfg          *config.Config
+	emailService email.EmailService
 }
 
 // NewAuthService creates a new auth service
-func NewAuthService(userService user.UserService, db *gorm.DB, cfg *config.Config) AuthService {
+func NewAuthService(userService user.UserService, db *gorm.DB, cfg *config.Config, emailService email.EmailService) AuthService {
 	jwtManager := utils.NewJWTManager(
 		cfg.JWT.Secret,
 		cfg.JWT.AccessExpiry,
@@ -40,10 +42,11 @@ func NewAuthService(userService user.UserService, db *gorm.DB, cfg *config.Confi
 	)
 
 	return &authService{
-		userService: userService,
-		jwtManager:  jwtManager,
-		db:          db,
-		cfg:         cfg,
+		userService:  userService,
+		jwtManager:   jwtManager,
+		db:           db,
+		cfg:          cfg,
+		emailService: emailService,
 	}
 }
 
@@ -60,6 +63,17 @@ func (s *authService) Register(req *dto.RegisterRequest) (*dto.AuthResponse, err
 	createdUser, err := s.userService.CreateUser(createUserReq)
 	if err != nil {
 		return nil, err
+	}
+
+	// Send welcome email if enabled
+	if s.emailService != nil && s.cfg.Email.Enabled {
+		// Send welcome email asynchronously (don't block the response)
+		go func() {
+			if err := s.emailService.SendWelcomeEmail(req.Email, req.Name); err != nil {
+				// Log error but don't fail the registration
+				println("Failed to send welcome email:", err.Error())
+			}
+		}()
 	}
 
 	// Generate tokens

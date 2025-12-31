@@ -41,7 +41,7 @@ func main() {
 	logger.Info("Database connected successfully")
 
 	// 4. Run database migrations
-	migrationModels := []interface{}{
+	migrationModels := []any{
 		&userModule.User{},
 		&dto.RefreshToken{},
 		&oauthdto.OAuthAccount{},

@@ -6,6 +6,7 @@ import (
 
 	"go_boilerplate/internal/shared/config"
 	"go_boilerplate/internal/shared/utils"
+	"go_boilerplate/internal/modules/email"
 	"go_boilerplate/internal/modules/oauth/dto"
 	"go_boilerplate/internal/modules/user"
 	userdto "go_boilerplate/internal/modules/user/dto"
@@ -27,10 +28,11 @@ type OAuthService interface {
 
 // oauthService implements OAuthService interface
 type oauthService struct {
-	db          *gorm.DB
-	cfg         *config.Config
-	userService user.UserService
-	jwtManager  *utils.JWTManager
+	db           *gorm.DB
+	cfg          *config.Config
+	userService  user.UserService
+	emailService email.EmailService
+	jwtManager   *utils.JWTManager
 }
 
 // NewOAuthService creates a new OAuth service
@@ -42,11 +44,20 @@ func NewOAuthService(db *gorm.DB, cfg *config.Config, userService user.UserServi
 		cfg.JWT.Issuer,
 	)
 
+	// Initialize email service (optional, will check before sending)
+	var emailService email.EmailService
+	if cfg.Email.Enabled {
+		// Import logger here - we'll get it from context or create a new one
+		// For now, we'll initialize without logger
+		emailService = email.NewEmailService(cfg, nil)
+	}
+
 	return &oauthService{
-		db:          db,
-		cfg:         cfg,
-		userService: userService,
-		jwtManager:  jwtManager,
+		db:           db,
+		cfg:          cfg,
+		userService:  userService,
+		emailService: emailService,
+		jwtManager:   jwtManager,
 	}
 }
 
@@ -142,6 +153,7 @@ func (s *oauthService) handleOAuthUser(userInfo *dto.OAuthUserInfo, token *oauth
 	err := s.db.Where("provider = ? AND provider_id = ?", userInfo.Provider, userInfo.ID).First(&oauthAccount).Error
 
 	var userID uuid.UUID
+	isNewUser := false
 
 	if err == nil {
 		// OAuth account exists, use existing user
@@ -156,6 +168,8 @@ func (s *oauthService) handleOAuthUser(userInfo *dto.OAuthUserInfo, token *oauth
 		s.db.Save(&oauthAccount)
 	} else {
 		// OAuth account doesn't exist, create new user
+		isNewUser = true
+
 		createUserReq := &userdto.CreateUserRequest{
 			Name:     userInfo.Name,
 			Email:    userInfo.Email,
@@ -181,6 +195,28 @@ func (s *oauthService) handleOAuthUser(userInfo *dto.OAuthUserInfo, token *oauth
 			ExpiresAt:    token.Expiry,
 		}
 		s.db.Create(&oauthAccount)
+	}
+
+	// Send welcome email if enabled and this is a new user
+	if isNewUser && s.emailService != nil && s.cfg.Email.Enabled {
+		// Check if welcome email is enabled for this provider
+		sendWelcomeEmail := false
+		if userInfo.Provider == "google" && s.cfg.OAuth.Google.SendWelcomeEmail {
+			sendWelcomeEmail = true
+		} else if userInfo.Provider == "github" && s.cfg.OAuth.GitHub.SendWelcomeEmail {
+			sendWelcomeEmail = true
+		}
+
+		if sendWelcomeEmail {
+			// Send welcome email asynchronously (don't block the response)
+			go func() {
+				if err := s.emailService.SendWelcomeEmail(userInfo.Email, userInfo.Name); err != nil {
+					// Log error but don't fail the OAuth flow
+					// In production, you might want to use proper logger
+					println("Failed to send welcome email:", err.Error())
+				}
+			}()
+		}
 	}
 
 	// Get user profile

@@ -82,7 +82,7 @@ func (j *JWTManager) GenerateTokenPair(userID uuid.UUID, email string) (accessTo
 
 // ValidateToken validates a JWT token and returns the claims
 func (j *JWTManager) ValidateToken(tokenString string) (*JWTClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (any, error) {
 		// Validate signing method
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("invalid signing method")

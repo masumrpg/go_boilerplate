@@ -53,16 +53,20 @@ type OAuthConfig struct {
 
 // GoogleOAuthConfig holds Google OAuth configuration
 type GoogleOAuthConfig struct {
-	ClientID     string `mapstructure:"OAUTH_GOOGLE_CLIENT_ID"`
-	ClientSecret string `mapstructure:"OAUTH_GOOGLE_CLIENT_SECRET"`
-	RedirectURL  string `mapstructure:"OAUTH_GOOGLE_REDIRECT_URL"`
+	ClientID         string `mapstructure:"OAUTH_GOOGLE_CLIENT_ID"`
+	ClientSecret     string `mapstructure:"OAUTH_GOOGLE_CLIENT_SECRET"`
+	RedirectURL      string `mapstructure:"OAUTH_GOOGLE_REDIRECT_URL"`
+	Enabled          bool   `mapstructure:"OAUTH_GOOGLE_ENABLED"`
+	SendWelcomeEmail bool   `mapstructure:"OAUTH_GOOGLE_SEND_WELCOME_EMAIL"`
 }
 
 // GitHubOAuthConfig holds GitHub OAuth configuration
 type GitHubOAuthConfig struct {
-	ClientID     string `mapstructure:"OAUTH_GITHUB_CLIENT_ID"`
-	ClientSecret string `mapstructure:"OAUTH_GITHUB_CLIENT_SECRET"`
-	RedirectURL  string `mapstructure:"OAUTH_GITHUB_REDIRECT_URL"`
+	ClientID         string `mapstructure:"OAUTH_GITHUB_CLIENT_ID"`
+	ClientSecret     string `mapstructure:"OAUTH_GITHUB_CLIENT_SECRET"`
+	RedirectURL      string `mapstructure:"OAUTH_GITHUB_REDIRECT_URL"`
+	Enabled          bool   `mapstructure:"OAUTH_GITHUB_ENABLED"`
+	SendWelcomeEmail bool   `mapstructure:"OAUTH_GITHUB_SEND_WELCOME_EMAIL"`
 }
 
 // EmailConfig holds email configuration
@@ -72,6 +76,7 @@ type EmailConfig struct {
 	SMTPUser     string `mapstructure:"SMTP_USER"`
 	SMTPPassword string `mapstructure:"SMTP_PASSWORD"`
 	SMTPFrom     string `mapstructure:"SMTP_FROM"`
+	Enabled      bool   `mapstructure:"EMAIL_ENABLED"`
 }
 
 // LoggerConfig holds logger configuration
@@ -115,14 +120,18 @@ func LoadConfig() (*Config, error) {
 		},
 		OAuth: OAuthConfig{
 			Google: GoogleOAuthConfig{
-				ClientID:     getEnv("OAUTH_GOOGLE_CLIENT_ID", ""),
-				ClientSecret: getEnv("OAUTH_GOOGLE_CLIENT_SECRET", ""),
-				RedirectURL:  getEnv("OAUTH_GOOGLE_REDIRECT_URL", ""),
+				ClientID:         getEnv("OAUTH_GOOGLE_CLIENT_ID", ""),
+				ClientSecret:     getEnv("OAUTH_GOOGLE_CLIENT_SECRET", ""),
+				RedirectURL:      getEnv("OAUTH_GOOGLE_REDIRECT_URL", ""),
+				Enabled:          getBoolEnv("OAUTH_GOOGLE_ENABLED", false),
+				SendWelcomeEmail: getBoolEnv("OAUTH_GOOGLE_SEND_WELCOME_EMAIL", false),
 			},
 			GitHub: GitHubOAuthConfig{
-				ClientID:     getEnv("OAUTH_GITHUB_CLIENT_ID", ""),
-				ClientSecret: getEnv("OAUTH_GITHUB_CLIENT_SECRET", ""),
-				RedirectURL:  getEnv("OAUTH_GITHUB_REDIRECT_URL", ""),
+				ClientID:         getEnv("OAUTH_GITHUB_CLIENT_ID", ""),
+				ClientSecret:     getEnv("OAUTH_GITHUB_CLIENT_SECRET", ""),
+				RedirectURL:      getEnv("OAUTH_GITHUB_REDIRECT_URL", ""),
+				Enabled:          getBoolEnv("OAUTH_GITHUB_ENABLED", false),
+				SendWelcomeEmail: getBoolEnv("OAUTH_GITHUB_SEND_WELCOME_EMAIL", false),
 			},
 		},
 		Email: EmailConfig{
@@ -131,9 +140,10 @@ func LoadConfig() (*Config, error) {
 			SMTPUser:     getEnv("SMTP_USER", ""),
 			SMTPPassword: getEnv("SMTP_PASSWORD", ""),
 			SMTPFrom:     getEnv("SMTP_FROM", ""),
+			Enabled:      getBoolEnv("EMAIL_ENABLED", false),
 		},
 		Logger: LoggerConfig{
-			Level:  getEnv("LOG_LEVEL", "debug"),
+			Level:  getEnv("a", "debug"),
 			Format: getEnv("LOG_FORMAT", "json"),
 		},
 	}
@@ -204,6 +214,39 @@ func getEnv(key, defaultValue string) string {
 func parseInt(s string) int {
 	i, _ := strconv.Atoi(s)
 	return i
+}
+
+// getBoolEnv parses a string to bool
+func getBoolEnv(key string, defaultValue bool) bool {
+	// Try os.Getenv first (from godotenv)
+	if value := os.Getenv(key); value != "" {
+	 parsed := parseBool(value)
+	 fmt.Printf("   ✅ %s = %v (from .env)\n", key, parsed)
+	 return parsed
+	}
+
+	// Fallback to viper
+	if value := viper.GetString(key); value != "" {
+	 parsed := parseBool(value)
+	 fmt.Printf("   ✅ %s = %v (from system)\n", key, parsed)
+	 return parsed
+	}
+
+	// Use default
+	fmt.Printf("   ⚠️  %s not set, using default: %v\n", key, defaultValue)
+	return defaultValue
+}
+
+// parseBool parses a string to bool (accepts: true, false, 1, 0, yes, no)
+func parseBool(s string) bool {
+	switch s {
+	case "true", "1", "yes", "TRUE", "YES", "True":
+		return true
+	case "false", "0", "no", "FALSE", "NO", "False":
+		return false
+	default:
+		return false
+	}
 }
 
 // bindEnvs binds environment variables to config keys

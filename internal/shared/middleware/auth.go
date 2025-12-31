@@ -70,7 +70,7 @@ func OptionalAuth(cfg *config.Config) fiber.Handler {
 		// Try to parse and validate the token
 		parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 
-		token, err := parser.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+		token, err := parser.Parse(tokenString, func(t *jwt.Token) (any, error) {
 			return []byte(cfg.JWT.Secret), nil
 		})
 

@@ -28,10 +28,23 @@ func RegisterRoutes(app *fiber.App, db *gorm.DB, cfg *config.Config, logger *log
 	// Create API route group
 	api := app.Group("/api/v1")
 
-	// Public OAuth routes
-	oauth := api.Group("/oauth")
-	oauth.Get("/google", oauthHandler.GoogleLogin)
-	oauth.Get("/google/callback", oauthHandler.GoogleCallback)
-	oauth.Get("/github", oauthHandler.GitHubLogin)
-	oauth.Get("/github/callback", oauthHandler.GitHubCallback)
+	// Register Google OAuth routes if enabled
+	if cfg.OAuth.Google.Enabled {
+		logger.Info("✓ Google OAuth routes registered (enabled)")
+		oauth := api.Group("/oauth")
+		oauth.Get("/google", oauthHandler.GoogleLogin)
+		oauth.Get("/google/callback", oauthHandler.GoogleCallback)
+	} else {
+		logger.Info("✗ Google OAuth routes skipped (disabled)")
+	}
+
+	// Register GitHub OAuth routes if enabled
+	if cfg.OAuth.GitHub.Enabled {
+		logger.Info("✓ GitHub OAuth routes registered (enabled)")
+		oauth := api.Group("/oauth")
+		oauth.Get("/github", oauthHandler.GitHubLogin)
+		oauth.Get("/github/callback", oauthHandler.GitHubCallback)
+	} else {
+		logger.Info("✗ GitHub OAuth routes skipped (disabled)")
+	}
 }
