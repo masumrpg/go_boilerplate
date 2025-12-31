@@ -11,11 +11,11 @@ import (
 	oauthModule "go_boilerplate/internal/modules/oauth"
 	oauthdto "go_boilerplate/internal/modules/oauth/dto"
 	roleModule "go_boilerplate/internal/modules/role"
+	userModule "go_boilerplate/internal/modules/user"
 	"go_boilerplate/internal/shared/config"
 	"go_boilerplate/internal/shared/database"
 	"go_boilerplate/internal/shared/middleware"
 	"go_boilerplate/internal/shared/utils"
-	userModule "go_boilerplate/internal/modules/user"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
@@ -41,7 +41,15 @@ func main() {
 	}
 	logger.Info("Database connected successfully")
 
-	// 4. Run database migrations
+	// 4. Initialize Redis
+	redisClient, err := database.InitRedis(cfg, logger)
+	if err != nil {
+		logger.Warnf("Failed to connect to Redis: %v", err)
+	} else {
+		defer redisClient.Close()
+	}
+
+	// 5. Run database migrations
 
 	// Step 1: Rename tables (drop old tables) - ONLY IN DEVELOPMENT
 	if cfg.Server.IsDevelopment() {
@@ -52,15 +60,20 @@ func main() {
 	}
 
 	// Step 2: AutoMigrate models with new table names
-	migrationModels := []any{
-		&roleModule.Role{},
-		&userModule.User{},
-		&dto.RefreshToken{},
-		&oauthdto.OAuthAccount{},
-	}
+	// This should only run in development. In production, use manual migrations (golang-migrate).
+	if cfg.Server.IsDevelopment() {
+		migrationModels := []any{
+			&roleModule.Role{},
+			&userModule.User{},
+			&dto.RefreshToken{},
+			&oauthdto.OAuthAccount{},
+		}
 
-	if err := database.AutoMigrate(db, migrationModels, logger); err != nil {
-		logger.Fatalf("Failed to run migrations: %v", err)
+		if err := database.AutoMigrate(db, migrationModels, logger); err != nil {
+			logger.Fatalf("Failed to run migrations: %v", err)
+		}
+	} else {
+		logger.Info("Running in production mode - skipping AutoMigrate")
 	}
 
 	// Step 3: Seed initial roles

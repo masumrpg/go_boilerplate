@@ -14,6 +14,7 @@ import (
 type Config struct {
 	Server     ServerConfig
 	Database   DatabaseConfig
+	Redis      RedisConfig
 	JWT        JWTConfig
 	OAuth      OAuthConfig
 	Email      EmailConfig
@@ -86,6 +87,14 @@ type LoggerConfig struct {
 	Format string `mapstructure:"LOG_FORMAT"` // json, text
 }
 
+// RedisConfig holds Redis configuration
+type RedisConfig struct {
+	Host     string `mapstructure:"REDIS_HOST"`
+	Port     string `mapstructure:"REDIS_PORT"`
+	Password string `mapstructure:"REDIS_PASSWORD"`
+	DB       int    `mapstructure:"REDIS_DB"`
+}
+
 // SuperAdminConfig holds default SuperAdmin account configuration
 type SuperAdminConfig struct {
 	Email    string `mapstructure:"SUPERADMIN_EMAIL"`
@@ -122,6 +131,12 @@ func LoadConfig() (*Config, error) {
 			Password: getEnv("DB_PASSWORD", "postgres"),
 			DBName:   getEnv("DB_NAME", "go_boilerplate"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
+		},
+		Redis: RedisConfig{
+			Host:     getEnv("REDIS_HOST", "localhost"),
+			Port:     getEnv("REDIS_PORT", "6379"),
+			Password: getEnv("REDIS_PASSWORD", ""),
+			DB:       parseInt(getEnv("REDIS_DB", "0")),
 		},
 		JWT: JWTConfig{
 			Secret: getEnv("JWT_SECRET", ""),
@@ -181,6 +196,7 @@ func LoadConfig() (*Config, error) {
 	fmt.Printf("   Server Port: %s\n", cfg.Server.Port)
 	fmt.Printf("   Server Mode: %s\n", cfg.Server.Mode)
 	fmt.Printf("   Database: %s@%s:%s/%s\n", cfg.Database.User, cfg.Database.Host, cfg.Database.Port, cfg.Database.DBName)
+	fmt.Printf("   Redis: %s:%s (DB: %d)\n", cfg.Redis.Host, cfg.Redis.Port, cfg.Redis.DB)
 	fmt.Printf("   JWT Secret: %s\n", maskSecret(cfg.JWT.Secret))
 	fmt.Printf("   Log Level: %s\n", cfg.Logger.Level)
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
