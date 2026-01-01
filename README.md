@@ -1,222 +1,191 @@
-# Struktur Project Golang Modular (Feature-Based)
+# 🛡️ Go Boilerplate - Enterprise-Ready Modular API
 
-## 📁 Struktur Folder
+Sebuah boilerplate REST API yang kokoh, modular (feature-based), dan siap produksi menggunakan ekosistem Go modern. Dirancang untuk skalabilitas, keamanan, dan kemudahan pengembangan.
 
-```
-project-root/
-├── cmd/
-│   └── api/
-│       └── main.go                 # Entry point aplikasi
-│
-├── internal/
-│   ├── shared/                    # 🔧 SHARED COMPONENTS
-│   │   ├── config/
-│   │   │   └── config.go          # Konfigurasi (Viper)
-│   │   │
-│   │   ├── database/
-│   │   │   ├── connection.go      # Database connection (GORM + PostgreSQL)
-│   │   │   ├── redis.go           # Redis connection
-│   │   │   └── migration.go       # Database migration & table rename
-│   │   │
-│   │   ├── middleware/
-│   │   │   ├── auth.go            # JWT middleware + RBAC
-│   │   │   ├── logger.go          # Logging middleware
-│   │   │   ├── cors.go            # CORS middleware
-│   │   │   └── validator.go       # Request validator middleware
-│   │   │
-│   │   └── utils/
-│   │       ├── jwt.go             # JWT token utilities
-│   │       ├── hash.go            # Password hashing (bcrypt)
-│   │       ├── random.go          # Random string helper (OTP)
-│   │       ├── validator.go       # Struct validation helper
-│   │       ├── response.go        # Standard API response format
-│   │       └── logger.go          # Logger setup & helper
-│   │
-│   └── modules/                   # 🔥 FEATURE MODULES
-│       │
-│       ├── auth/                  # AUTH MODULE
-│       │   ├── model.go           # Auth-related models (jika ada)
-│       │   ├── repository.go      # Auth data access
-│       │   ├── service.go         # Auth business logic
-│       │   ├── handler.go         # Auth HTTP handlers
-│       │   ├── routes.go          # Auth route registration
-│       │   └── dto/
-│       │       ├── request.go     # Login, Register, Refresh DTOs
-│       │       └── response.go    # Token response DTOs
-│       │
-│       ├── user/                  # USER MODULE
-│       │   ├── model.go           # User entity/model
-│       │   ├── repository.go      # User repository (CRUD)
-│       │   ├── service.go         # User business logic
-│       │   ├── handler.go         # User HTTP handlers
-│       │   ├── routes.go          # User route registration
-│       │   └── dto/
-│       │       ├── request.go     # Create, Update user DTOs
-│       │       └── response.go    # User response DTOs
-│       │
-│       ├── role/                  # ROLE MODULE (RBAC)
-│       │   ├── model.go           # Role entity/model
-│       │   ├── repository.go      # Role repository
-│       │   ├── service.go         # Role business logic + seeding
-│       │   ├── handler.go         # Role HTTP handlers
-│       │   ├── routes.go          # Role route registration
-│       │   └── dto/
-│       │       ├── request.go     # Create, Update role DTOs
-│       │       └── response.go    # Role response DTOs
-│       │
-│       ├── email/                 # EMAIL MODULE
-│       │   ├── service.go         # Email service (gomail)
-│       │   ├── template.go        # Email HTML templates
-│       │   └── dto/
-│       │       └── request.go     # Email send request DTO
-│       │
-│       └── oauth/                 # OAUTH MODULE
-│           ├── service.go         # OAuth2 service (Google, GitHub)
-│           ├── handler.go         # OAuth callback handlers
-│           ├── routes.go          # OAuth routes
-│           └── dto/
-│               └── response.go    # OAuth user info response
-│
-├── docs/
-│   ├── docs.go                    # Swagger generated files
-│   ├── swagger.json
-│   └── swagger.yaml
-│
-├── pkg/
-│   └── ...                        # Public packages (optional)
-│
-├── .env.example
-├── .gitignore
-├── go.mod
-├── go.sum
-├── Makefile
-└── README.md
+---
+
+## 🚀 Fitur Utama
+
+- **Modular Architecture**: Struktur folder berbasis fitur (Domain-Driven Design friendly).
+- **Advanced Auth System**:
+  - JWT Authentication (Access & Refresh Tokens).
+  - RBAC (Role-Based Access Control) dengan permission granular.
+  - Multi-factor Authentication (2FA) & Verifikasi Email.
+  - Session Management & Device Tracking.
+- **OAuth2 Integration**: Login via Google & GitHub.
+- **Robust Persistence**: GORM dengan dukungan PostgreSQL.
+- **Caching & OTP**: Redis untuk validasi OTP yang cepat dan aman.
+- **Embedded Email Templates**: Template HTML yang dinamis dengan `//go:embed`.
+- **Automatic Swagger**: Dokumentasi API interaktif yang selalu sinkron.
+- **Database Migrations**: Manajemen skema versi menggunakan `golang-migrate`.
+- **Docker Ready**: Deployment instan dengan Docker Compose.
+
+---
+
+## 🏗️ Arsitektur Sistem
+
+Aplikasi ini menggunakan pola **Modular Layered Architecture**. Setiap modul merangkum logikanya sendiri sementara tetap berbagi komponen universal di folder `shared`.
+
+```mermaid
+graph TD
+    subgraph Client_Layer
+        User([User Client])
+    end
+
+    subgraph API_Layer
+        Fiber[Fiber v2 Framework]
+        Handler[Handlers/Controllers]
+        M_Auth[JWT Middleware]
+        M_RBAC[RBAC Middleware]
+        M_Log[Logger Middleware]
+    end
+
+    subgraph Logic_Layer
+        Service[Service / Business Logic]
+        DTO[DTO - Data Transfer Object]
+    end
+
+    subgraph Data_Layer
+        Repo[Repository / Data Access]
+        GORM[GORM ORM]
+    end
+
+    subgraph External_Resources
+        PG[(Postgres Database)]
+        RD[(Redis Cache/OTP)]
+        SMTP[Gomail SMTP]
+    end
+
+    User -- HTTP/JSON --> Fiber
+    Fiber --> M_Log
+    M_Log --> M_Auth
+    M_Auth --> M_RBAC
+    M_RBAC --> Handler
+    Handler --> Service
+    Service -- Validation --> DTO
+    Service --> Repo
+    Repo --> GORM
+    GORM --> PG
+    Service --> RD
+    Service --> SMTP
 ```
 
 ---
 
-## 🏗️ Pattern & Responsibility
+## 🔐 Alur Autentikasi & Keamanan
 
-### **`cmd/api/main.go`**
-- Initialize shared components (config, database, logger, redis)
-- Register all module routes
-- Start Fiber server
+Berikut adalah alur pendaftaran hingga login dengan fitur keamanan berlapis:
 
-### **`internal/shared/`** - Shared Components
+```mermaid
+sequenceDiagram
+    participant User
+    participant API as API Server
+    participant Redis
+    participant DB as PostgreSQL
+    participant Mail as Email Service
 
-#### `config/`
-- Load configuration dari environment variables (Viper)
-- Config struct untuk type-safe access
+    Note over User, Mail: Registrasi Account
+    User->>API: POST /register (Data User)
+    API->>DB: Save User (Status: Unverified)
+    API->>Redis: Set Activation CODE (TTL 10m)
+    API->>Mail: Send Verification Email
+    User->>API: POST /verify-email (CODE)
+    API->>Redis: Validate CODE
+    API->>DB: Update User (is_verified: true)
 
-#### `database/`
-- Database connection pooling (GORM + PostgreSQL)
-- Redis client configuration
-- Migration management
-
-#### `middleware/`
-- **auth.go**: JWT validation middleware & RBAC
-- **logger.go**: HTTP request/response logging
-- **cors.go**: CORS configuration
-- **validator.go**: Request body validation
-
-#### `utils/`
-- **jwt.go**: Generate & validate JWT tokens
-- **hash.go**: Password hashing dengan bcrypt
-- **random.go**: Random string generator untuk OTP
-- **validator.go**: Struct validation helper
-
----
-
-### 🔒 Security Features (Optional)
-
-Aplikasi ini mendukung fitur keamanan tambahan yang bisa diaktifkan melalui `.env`:
-
-#### 1. Account Activation (Email Verification)
-- **Env**: `EMAIL_VERIFICATION_ENABLED=true`
-- **Deskripsi**: User baru harus memverifikasi email dengan kode OTP 6-digit sebelum bisa login.
-- **Penyimpanan**: Kode OTP disimpan di Redis (TTL 10 menit).
-
-#### 2. Two-Factor Authentication (2FA)
-- **Env**: `TWO_FACTOR_ENABLED=true`
-- **Deskripsi**: Setelah memasukkan password, user harus memasukkan kode OTP yang dikirim ke email.
-- **Penyimpanan**: Kode OTP disimpan di Redis (TTL 5 menit).
-
-#### 3. Session Management & Device Tracking
-- **Deskripsi**: Setiap login menghasilkan session baru yang menyimpan metadata perangkat.
-- **Metadata**: Menyimpan IP Address, User Agent, dan Device ID (`X-Device-ID`).
-- **Kontrol User**: User bisa melihat daftar login active, logout dari perangkat tertentu, atau memblokir perangkat.
+    Note over User, Mail: Login Flow with 2FA
+    User->>API: POST /login (Credentials)
+    API->>DB: Verify Password
+    alt 2FA is Enabled
+        API->>Redis: Set 2FA CODE (TTL 5m)
+        API->>Mail: Send 2FA OTP Email
+        User->>API: POST /verify-2fa (CODE)
+        API->>Redis: Validate CODE
+    end
+    API->>DB: Create Session (Metadata: IP, Device)
+    API-->>User: Return JWT (Access & Refresh)
+```
 
 ---
 
-## 💾 Database Migrations
+## 🛠️ Technology Stack & Penggunaan
 
-Menggunakan `golang-migrate` untuk manajemen skema database yang versi-able.
-
-- **Run Migrations**: `make migrate-up` atau `go run cmd/migrate/main.go -up`
-- **Rollback**: `make migrate-down`
-- **Create New**: `make migrate-create`
-
----
-
-## 🚀 Docker Support
-
-Aplikasi sudah mendukung containerization:
-- **Run**: `docker-compose up -d --build`
-- **Services**: App, PostgreSQL, Redis, Migrate.
-
----
-
-## 🏗️ Architecture Layers
-
-### **`internal/modules/`** - Feature Modules
-
-Setiap module mengikuti pattern yang sama:
-
-**`model.go`**
-- Define database entity/schema, GORM struct tags, relationships.
-
-**`repository.go`**
-- Interface & implementation untuk data access (queries only).
-
-**`service.go`**
-- Business logic implementation, orchestrate repositories.
-
-**`handler.go`**
-- Parse HTTP requests, call service methods, return responses.
-
-**`routes.go`**
-- Register routes, apply middleware, dependency injection.
+| Komponen | Library | Alasan & Penggunaan |
+| :--- | :--- | :--- |
+| **Web Framework** | [Fiber v2](https://gofiber.io/) | Framework Go tercepat (berbasis fasthttp) dengan performa tinggi & middleware lengkap. |
+| **Database ORM** | [GORM](https://gorm.io/) | ORM paling populer di Go. Digunakan untuk query, relasi, dan auto-migration. |
+| **Database** | [PostgreSQL](https://www.postgresql.org/) | RDBMS powerfull untuk konsistensi data dan integritas. |
+| **Cache & OTP** | [Redis](https://redis.io/) | Digunakan untuk menyimpan kode OTP activation/2FA dengan TTL dan session tracking. |
+| **Auth** | [JWT-Go (v5)](https://github.com/golang-jwt/jwt) | Implementasi token keamanan berbasis standar industri. |
+| **Configuration** | [Viper](https://github.com/spf13/viper) | Membaca konfigurasi dari `.env`, env vars, atau config file secara dinamis. |
+| **Validation** | [Validator v10](https://github.com/go-playground/validator) | Validasi request DTO (email, required, min-max) menggunakan struct tags. |
+| **Logging** | [Logrus](https://github.com/sirupsen/logrus) | Structured logging dengan level (info, warn, error) dan format JSON/Text. |
+| **Email** | [Gomail](https://github.com/go-gomail/gomail) | Mengelola pengiriman email SMTP untuk notifikasi dan OTP. |
+| **Migrations** | [Golang-Migrate](https://github.com/golang-migrate/migrate) | Versioning database schema secara eksplisit dan aman. |
+| **API Docs** | [Swaggo](https://github.com/swaggo/swag) | Meng-generate OpenAPI 2.0 dokumentasi langsung dari code comments. |
 
 ---
 
-## 📚 Technology Stack
+## 📁 Struktur Folder Modular
 
-- **Framework**: Fiber v2
-- **ORM**: GORM + PostgreSQL
-- **Caching/OTP**: Redis
-- **Validation**: go-playground/validator/v10
-- **JWT**: golang-jwt/jwt/v5
-- **Logger**: sirupsen/logrus
-- **Email**: gopkg.in/gomail.v2
-- **OAuth**: golang.org/x/oauth2
-
----
-
-## 🔐 RBAC System
-
-API ini menggunakan sistem RBAC (Role-Based Access Control):
-- **3 Default Role**: SuperAdmin, Admin, User.
-- **Granular Permissions**: Format `resource.action` (contoh: `users.create`).
-- **SuperAdmin Account**: Otomatis dibuat saat startup berdasarkan `.env`.
+```text
+internal/
+├── shared/                # 🛠️ GLOBAL COMPONENTS
+│   ├── config/            # Viper setup
+│   ├── database/          # Connections (GORM, Redis) & Migrations
+│   ├── middleware/        # Auth, RBAC, Logger, CORS, Validator
+│   └── utils/             # JWT, Hash, Response, Logger Helpers
+│
+└── modules/               # 🔥 DOMAIN MODULES
+    ├── auth/              # Logic Login, Registration, 2FA
+    ├── user/              # Management User & Profile
+    ├── role/              # RBAC: Create Role & Permissions
+    ├── oauth/             # Google & GitHub Login
+    └── email/             # SMTP Service & HTML Templates
+```
 
 ---
 
-## 🎛️ Feature Flags
+## 🛠️ Cara Menjalankan
 
-Fitur opsional via `.env`:
-- `OAUTH_GOOGLE_ENABLED`: Aktifkan Google OAuth.
-- `OAUTH_GITHUB_ENABLED`: Aktifkan GitHub OAuth.
-- `EMAIL_ENABLED`: Aktifkan pengiriman email.
-- `EMAIL_VERIFICATION_ENABLED`: Aktifkan verifikasi email user baru.
-- `TWO_FACTOR_ENABLED`: Aktifkan 2FA login.
-- `SERVER_MODE`: Jika `development`, menghapus tabel lama (users, etc) dan rename ke prefix baru.
+### Menggunakan Docker (Rekomendasi)
+```bash
+# 1. Clone repository
+# 2. Setup .env (copy dari .env.example)
+docker-compose up -d --build
+```
+
+### Manual (Development)
+```bash
+# 1. Install dependencies
+go mod download
+
+# 2. Run migrations
+make migrate-up
+
+# 3. Generate Swagger (jika ada perubahan handler)
+make swagger
+
+# 4. Start Server
+go run cmd/api/main.go
+```
+
+---
+
+## 📚 API Dokumentasi
+
+Setelah server berjalan, dokumentasi lengkap tersedia di:
+- **Swagger UI**: `http://localhost:3000/swagger/`
+- **Postman**: Import file `Go_Boilerplate_API.postman_collection.json` di root folder.
+
+---
+
+## 🔐 Keamanan & Fitur Tambahan
+
+- **Device Fingerprinting**: Setiap session mencatat `IP Address`, `User Agent`, dan `Device ID`.
+- **RBAC Granular**: Akses dikontrol hingga tingkat resource (contoh: `roles:create`, `users:update`).
+- **Clean Shutdown**: Menangani signal Linux (`SIGINT`, `SIGTERM`) untuk menutup koneksi database secara aman saat server mati.
+- **Embedded Templates**: Template email berada di dalam binary, memudahkan distribusi tanpa perlu mengcopy file manual.
+
+---
+© 2026 Go Boilerplate Squad.

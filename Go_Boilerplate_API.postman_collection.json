@@ -532,7 +532,7 @@
         {
           "name": "Assign Role to User",
           "request": {
-            "method": "PUT",
+            "method": "PATCH",
             "header": [
               {
                 "key": "Content-Type",

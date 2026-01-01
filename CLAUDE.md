@@ -15,6 +15,10 @@ go run cmd/api/main.go
 # Build the binary
 go build -o bin/api cmd/api/main.go
 
+# Generate Swagger Documentation
+make swagger
+# Or manually: swag init -g cmd/api/main.go -o docs --parseDependency --parseInternal
+
 # Run tests
 go test ./... -v
 
@@ -48,7 +52,7 @@ internal/
     auth/                # Authentication (login, register, refresh tokens, verification)
     user/                # User management (CRUD)
     role/                # Role and permission management (RBAC)
-    email/               # Email service (gomail)
+    email/               # Email service (gomail) + templates/ (html/template)
     oauth/               # OAuth2 integration (Google, GitHub)
 ```
 
@@ -248,7 +252,7 @@ The API enforces strict role assignment rules to maintain security:
 - Regular users cannot update their own role (blocked at handler level)
 - Non-admin users can only update their name and email
 
-**Assign Role (PUT /api/v1/users/:id/role) - SuperAdmin only:**
+**Assign Role (PATCH /api/v1/users/:id/role) - SuperAdmin only:**
 - Can assign any role including "super_admin"
 - This is the ONLY way to grant super_admin role to a user
 - Requires role UUID in request body
@@ -260,7 +264,7 @@ The API enforces strict role assignment rules to maintain security:
 | **POST /api/v1/auth/register** | Public | ✅ (auto) | ❌ | ❌ |
 | **POST /api/v1/users** | Admin/SuperAdmin | ✅ (default) | ✅ (optional) | ❌ (blocked) |
 | **PUT /api/v1/users/:id** | All users* | ✅ (admin only) | ✅ (admin only) | ❌ (blocked) |
-| **PUT /api/v1/users/:id/role** | SuperAdmin only | ✅ | ✅ | ✅ |
+| **PATCH /api/v1/users/:id/role** | SuperAdmin only | ✅ | ✅ | ✅ |
 
 *Regular users can update their own profile but NOT their role. Only Admin/SuperAdmin can update roles.
 
@@ -286,7 +290,7 @@ The API enforces strict role assignment rules to maintain security:
 - `/api/v1/roles` (GET) - List all roles
 
 **SuperAdmin Only Routes:**
-- `/api/v1/users/:id/role` (PUT) - Assign role to user
+- `/api/v1/users/:id/role` (PATCH) - Assign role to user
 - `/api/v1/roles` (POST) - Create role
 - `/api/v1/roles/:id` (PUT/DELETE) - Update/delete role
 

@@ -34,12 +34,9 @@ func NewOAuthHandler(service OAuthService) OAuthHandler {
 func (h *oauthHandler) GoogleLogin(c *fiber.Ctx) error {
 	url := h.service.GetGoogleAuthURL()
 
-	return c.JSON(fiber.Map{
-		"success": true,
-		"data": fiber.Map{
-			"auth_url": url,
-		},
-	})
+	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
+		"auth_url": url,
+	}, "Auth URL retrieved successfully")
 }
 
 // GoogleCallback handles Google OAuth callback
@@ -77,12 +74,9 @@ func (h *oauthHandler) GoogleCallback(c *fiber.Ctx) error {
 func (h *oauthHandler) GitHubLogin(c *fiber.Ctx) error {
 	url := h.service.GetGitHubAuthURL()
 
-	return c.JSON(fiber.Map{
-		"success": true,
-		"data": fiber.Map{
-			"auth_url": url,
-		},
-	})
+	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
+		"auth_url": url,
+	}, "Auth URL retrieved successfully")
 }
 
 // GitHubCallback handles GitHub OAuth callback

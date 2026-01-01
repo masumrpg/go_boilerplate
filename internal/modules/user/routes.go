@@ -1,10 +1,10 @@
 package user
 
 import (
-	"go_boilerplate/internal/shared/config"
-	sharedmiddleware "go_boilerplate/internal/shared/middleware"
 	"go_boilerplate/internal/modules/role"
 	"go_boilerplate/internal/modules/user/dto"
+	"go_boilerplate/internal/shared/config"
+	sharedmiddleware "go_boilerplate/internal/shared/middleware"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/sirupsen/logrus"
@@ -35,6 +35,7 @@ func RegisterRoutes(app *fiber.App, db *gorm.DB, cfg *config.Config, logger *log
 
 	// Routes accessible by any authenticated user
 	protected.Get("/me", userHandler.GetCurrentUser)                       // Get current user profile
+	protected.Get("/:id", userHandler.GetUser)                             // Get user by ID
 	protected.Put("/:id", sharedmiddleware.BodyValidator(&dto.UpdateUserRequest{}), userHandler.UpdateUser) // Update user (self-profile or with permission)
 
 	// Routes accessible by Admin and SuperAdmin only
@@ -47,5 +48,5 @@ func RegisterRoutes(app *fiber.App, db *gorm.DB, cfg *config.Config, logger *log
 	// Routes accessible by SuperAdmin only
 	superAdminOnly := protected.Group("/")
 	superAdminOnly.Use(sharedmiddleware.RequireRole(cfg, "super_admin"))
-	superAdminOnly.Put("/:id/role", sharedmiddleware.BodyValidator(&dto.AssignRoleRequest{}), userHandler.AssignRole) // Assign role to user
+	superAdminOnly.Patch("/:id/role", sharedmiddleware.BodyValidator(&dto.AssignRoleRequest{}), userHandler.AssignRole) // Assign role to user
 }

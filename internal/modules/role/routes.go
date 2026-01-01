@@ -1,9 +1,9 @@
 package role
 
 import (
+	"go_boilerplate/internal/modules/role/dto"
 	"go_boilerplate/internal/shared/config"
 	"go_boilerplate/internal/shared/middleware"
-	"go_boilerplate/internal/modules/role/dto"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/sirupsen/logrus"
@@ -27,8 +27,7 @@ func RegisterRoutes(app *fiber.App, db *gorm.DB, cfg *config.Config, logger *log
 	// Protected routes - require SuperAdmin role
 	roles := api.Group("/roles")
 	roles.Use(middleware.JWTAuth(cfg))
-	// TODO: Add RequireRole middleware once implemented
-	// roles.Use(middleware.RequireRole(cfg, "super_admin"))
+	roles.Use(middleware.RequireRole(cfg, "super_admin"))
 
 	// Role CRUD routes (only SuperAdmin can manage roles)
 	roles.Get("/", roleHandler.GetRoles)                        // Get all roles (with pagination)
