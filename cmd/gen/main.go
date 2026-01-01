@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 )
 
 type Config struct {
@@ -401,6 +402,9 @@ func main() {
 	// 3. Auto Inject to main.go
 	injectToMain(config)
 
+	// 4. Generate SQL Migrations
+	generateMigrations(config)
+
 	fmt.Printf("\n🚀 Module '%s' generated successfully!\n", name)
 	fmt.Println("Next steps:")
 	fmt.Printf("1. Refresh Swagger: make swagger\n")
@@ -442,5 +446,44 @@ func injectToMain(config Config) {
 		fmt.Printf("Error updating main.go: %v\n", err)
 	} else {
 		fmt.Println("✓ Auto-injected to cmd/api/main.go")
+	}
+}
+
+func generateMigrations(config Config) {
+	timestamp := time.Now().Format("20060102150405")
+	migrationDir := "db/migrations"
+
+	upFileName := fmt.Sprintf("%s_create_%s_table.up.sql", timestamp, config.NamePlural)
+	downFileName := fmt.Sprintf("%s_create_%s_table.down.sql", timestamp, config.NamePlural)
+
+	upContent := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "t_%s" (
+    "id" UUID PRIMARY KEY,
+    "name" VARCHAR(255) NOT NULL,
+    "created_at" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    "deleted_at" TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX IF NOT EXISTS "idx_t_%s_deleted_at" ON "t_%s" ("deleted_at");
+`, config.NamePlural, config.NamePlural, config.NamePlural)
+
+	downContent := fmt.Sprintf(`DROP TABLE IF EXISTS "t_%s";
+`, config.NamePlural)
+
+	if err := os.MkdirAll(migrationDir, 0755); err != nil {
+		fmt.Printf("Error creating migration directory: %v\n", err)
+		return
+	}
+
+	if err := os.WriteFile(filepath.Join(migrationDir, upFileName), []byte(upContent), 0644); err != nil {
+		fmt.Printf("Error writing up migration: %v\n", err)
+	} else {
+		fmt.Printf("✓ Created %s/%s\n", migrationDir, upFileName)
+	}
+
+	if err := os.WriteFile(filepath.Join(migrationDir, downFileName), []byte(downContent), 0644); err != nil {
+		fmt.Printf("Error writing down migration: %v\n", err)
+	} else {
+		fmt.Printf("✓ Created %s/%s\n", migrationDir, downFileName)
 	}
 }

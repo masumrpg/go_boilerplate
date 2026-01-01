@@ -140,6 +140,7 @@ go run cmd/gen/main.go product
 - `internal/modules/product/` with model, repository, service, handler, routes, and DTOs.
 - Automatic registration in `cmd/api/main.go`.
 - Automatic model registration for development AutoMigrate.
+- **New**: Automatic `.up.sql` and `.down.sql` migration files in `db/migrations/`.
 
 ### 2. Manual Module Creation
 If you prefer manual creation, follow the structure in `internal/modules/`. Ensure your module includes:
