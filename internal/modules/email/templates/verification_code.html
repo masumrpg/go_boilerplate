@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .container { max-width: 600px; margin: 0 auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .header { background-color: #3b82f6; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { padding: 30px; background-color: #ffffff; border: 1px solid #e5e7eb; border-top: none; }
+        .code-box { background-color: #f3f4f6; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #1f2937; margin: 20px 0; border-radius: 4px; }
+        .footer { padding: 20px; text-align: center; font-size: 12px; color: #6b7280; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 style="margin:0;">Confirm Your Email</h1>
+        </div>
+        <div class="content">
+            <p>Thank you for joining us! Please use the following code to verify your account:</p>
+            <div class="code-box">{{.Code}}</div>
+            <p>This code is valid for 10 minutes. If you didn't request this, please ignore this email.</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 Go Boilerplate. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

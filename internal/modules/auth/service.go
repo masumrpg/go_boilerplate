@@ -95,9 +95,7 @@ func (s *authService) Register(req *dto.RegisterRequest, metadata dto.SessionMet
 		// Send email asynchronously
 		go func() {
 			if s.emailService != nil {
-				// In a real app, use a better template
-				body := "<h1>Welcome!</h1><p>Your activation code is: <strong>" + code + "</strong></p>"
-				s.emailService.SendEmail(req.Email, "Activate Account", body)
+				s.emailService.SendVerificationEmail(req.Email, code)
 			}
 		}()
 
@@ -149,8 +147,7 @@ func (s *authService) Login(req *dto.LoginRequest, metadata dto.SessionMetadata)
 		// Send Email
 		go func() {
 			if s.emailService != nil {
-				body := "<p>Your Login OTP is: <strong>" + code + "</strong></p>"
-				s.emailService.SendEmail(req.Email, "Login OTP", body)
+				s.emailService.SendTwoFactorEmail(req.Email, code)
 			}
 		}()
 
@@ -228,8 +225,7 @@ func (s *authService) ResendVerification(email string) error {
 
 	go func() {
 		if s.emailService != nil {
-			body := "<h1>Activation Code</h1><p>Your new activation code is: <strong>" + code + "</strong></p>"
-			s.emailService.SendEmail(email, "Resend Activation Code", body)
+			s.emailService.SendVerificationEmail(email, code)
 		}
 	}()
 
@@ -257,8 +253,7 @@ func (s *authService) Resend2FA(email string) error {
 
 	go func() {
 		if s.emailService != nil {
-			body := "<p>Your new Login OTP is: <strong>" + code + "</strong></p>"
-			s.emailService.SendEmail(email, "Resend Login OTP", body)
+			s.emailService.SendTwoFactorEmail(email, code)
 		}
 	}()
 
