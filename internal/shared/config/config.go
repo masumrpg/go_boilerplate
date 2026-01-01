@@ -18,8 +18,15 @@ type Config struct {
 	JWT        JWTConfig
 	OAuth      OAuthConfig
 	Email      EmailConfig
+	Security   SecurityConfig
 	Logger     LoggerConfig
 	SuperAdmin SuperAdminConfig
+}
+
+// SecurityConfig holds security configuration
+type SecurityConfig struct {
+	EmailVerificationEnabled bool `mapstructure:"EMAIL_VERIFICATION_ENABLED"`
+	TwoFactorEnabled         bool `mapstructure:"TWO_FACTOR_ENABLED"`
 }
 
 // ServerConfig holds server configuration
@@ -37,6 +44,14 @@ type DatabaseConfig struct {
 	Password string `mapstructure:"DB_PASSWORD"`
 	DBName   string `mapstructure:"DB_NAME"`
 	SSLMode  string `mapstructure:"DB_SSLMODE"`
+}
+
+// RedisConfig holds Redis configuration
+type RedisConfig struct {
+	Host     string `mapstructure:"REDIS_HOST"`
+	Port     string `mapstructure:"REDIS_PORT"`
+	Password string `mapstructure:"REDIS_PASSWORD"`
+	DB       int    `mapstructure:"REDIS_DB"`
 }
 
 // JWTConfig holds JWT configuration
@@ -85,14 +100,6 @@ type EmailConfig struct {
 type LoggerConfig struct {
 	Level  string `mapstructure:"LOG_LEVEL"` // debug, info, warn, error
 	Format string `mapstructure:"LOG_FORMAT"` // json, text
-}
-
-// RedisConfig holds Redis configuration
-type RedisConfig struct {
-	Host     string `mapstructure:"REDIS_HOST"`
-	Port     string `mapstructure:"REDIS_PORT"`
-	Password string `mapstructure:"REDIS_PASSWORD"`
-	DB       int    `mapstructure:"REDIS_DB"`
 }
 
 // SuperAdminConfig holds default SuperAdmin account configuration
@@ -165,6 +172,10 @@ func LoadConfig() (*Config, error) {
 			SMTPFrom:     getEnv("SMTP_FROM", ""),
 			Enabled:      getBoolEnv("EMAIL_ENABLED", false),
 		},
+		Security: SecurityConfig{
+			EmailVerificationEnabled: getBoolEnv("EMAIL_VERIFICATION_ENABLED", false),
+			TwoFactorEnabled:         getBoolEnv("TWO_FACTOR_ENABLED", false),
+		},
 		Logger: LoggerConfig{
 			Level:  getEnv("LOG_LEVEL", "debug"),
 			Format: getEnv("LOG_FORMAT", "json"),
@@ -199,6 +210,7 @@ func LoadConfig() (*Config, error) {
 	fmt.Printf("   Redis: %s:%s (DB: %d)\n", cfg.Redis.Host, cfg.Redis.Port, cfg.Redis.DB)
 	fmt.Printf("   JWT Secret: %s\n", maskSecret(cfg.JWT.Secret))
 	fmt.Printf("   Log Level: %s\n", cfg.Logger.Level)
+	fmt.Printf("   Security: EmailVerify=%v, 2FA=%v\n", cfg.Security.EmailVerificationEnabled, cfg.Security.TwoFactorEnabled)
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 	// Validate required fields
@@ -309,6 +321,9 @@ func bindEnvs() {
 	viper.BindEnv("SMTP_PASSWORD")
 	viper.BindEnv("SMTP_FROM")
 
+	viper.BindEnv("EMAIL_VERIFICATION_ENABLED")
+	viper.BindEnv("TWO_FACTOR_ENABLED")
+
 	viper.BindEnv("LOG_LEVEL")
 	viper.BindEnv("LOG_FORMAT")
 }
@@ -335,6 +350,10 @@ func setDefaults() {
 
 	// Email defaults
 	viper.SetDefault("SMTP_PORT", "587")
+
+	// Security defaults
+	viper.SetDefault("EMAIL_VERIFICATION_ENABLED", false)
+	viper.SetDefault("TWO_FACTOR_ENABLED", false)
 
 	// Logger defaults
 	viper.SetDefault("LOG_LEVEL", "debug")

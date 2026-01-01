@@ -4,26 +4,27 @@ import (
 	"context"
 	"errors"
 
-	"go_boilerplate/internal/shared/config"
-	"go_boilerplate/internal/shared/utils"
+	authdto "go_boilerplate/internal/modules/auth/dto"
 	"go_boilerplate/internal/modules/email"
 	"go_boilerplate/internal/modules/oauth/dto"
 	"go_boilerplate/internal/modules/user"
 	userdto "go_boilerplate/internal/modules/user/dto"
+	"go_boilerplate/internal/shared/config"
+	"go_boilerplate/internal/shared/utils"
 
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/github"
+	"golang.org/x/oauth2/google"
 	"gorm.io/gorm"
 )
 
 // OAuthService defines the interface for OAuth operations
 type OAuthService interface {
 	GetGoogleAuthURL() string
-	HandleGoogleCallback(code string) (*dto.OAuthResponse, error)
+	HandleGoogleCallback(code string) (*authdto.AuthResponse, error)
 	GetGitHubAuthURL() string
-	HandleGitHubCallback(code string) (*dto.OAuthResponse, error)
+	HandleGitHubCallback(code string) (*authdto.AuthResponse, error)
 }
 
 // oauthService implements OAuthService interface
@@ -78,7 +79,7 @@ func (s *oauthService) GetGoogleAuthURL() string {
 }
 
 // HandleGoogleCallback handles Google OAuth callback
-func (s *oauthService) HandleGoogleCallback(code string) (*dto.OAuthResponse, error) {
+func (s *oauthService) HandleGoogleCallback(code string) (*authdto.AuthResponse, error) {
 	// Exchange code for token
 	oauth2Config := &oauth2.Config{
 		ClientID:     s.cfg.OAuth.Google.ClientID,
@@ -119,7 +120,7 @@ func (s *oauthService) GetGitHubAuthURL() string {
 }
 
 // HandleGitHubCallback handles GitHub OAuth callback
-func (s *oauthService) HandleGitHubCallback(code string) (*dto.OAuthResponse, error) {
+func (s *oauthService) HandleGitHubCallback(code string) (*authdto.AuthResponse, error) {
 	// Exchange code for token
 	oauth2Config := &oauth2.Config{
 		ClientID:     s.cfg.OAuth.GitHub.ClientID,
@@ -147,7 +148,7 @@ func (s *oauthService) HandleGitHubCallback(code string) (*dto.OAuthResponse, er
 }
 
 // handleOAuthUser handles OAuth user login/registration
-func (s *oauthService) handleOAuthUser(userInfo *dto.OAuthUserInfo, token *oauth2.Token) (*dto.OAuthResponse, error) {
+func (s *oauthService) handleOAuthUser(userInfo *dto.OAuthUserInfo, token *oauth2.Token) (*authdto.AuthResponse, error) {
 	// Check if OAuth account exists
 	var oauthAccount dto.OAuthAccount
 	err := s.db.Where("provider = ? AND provider_id = ?", userInfo.Provider, userInfo.ID).First(&oauthAccount).Error
@@ -241,10 +242,10 @@ func (s *oauthService) handleOAuthUser(userInfo *dto.OAuthUserInfo, token *oauth
 	// Calculate expires in
 	expiresIn := int64(s.cfg.JWT.AccessExpiry.Seconds())
 
-	return &dto.OAuthResponse{
+	return &authdto.AuthResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    expiresIn,
-		User:         *userProfile,
+		User:         userProfile,
 	}, nil
 }

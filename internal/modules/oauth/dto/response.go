@@ -3,17 +3,8 @@ package dto
 import (
 	"time"
 
-	"go_boilerplate/internal/modules/user/dto"
 	"github.com/google/uuid"
 )
-
-// OAuthResponse represents an OAuth authentication response
-type OAuthResponse struct {
-	AccessToken  string                    `json:"access_token"`
-	RefreshToken string                    `json:"refresh_token"`
-	ExpiresIn    int64                     `json:"expires_in"`
-	User         dto.UserRoleResponse      `json:"user"`
-}
 
 // OAuthUserInfo represents user information from OAuth provider
 type OAuthUserInfo struct {

@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"go_boilerplate/internal/shared/utils"
 	"go_boilerplate/internal/modules/auth/dto"
+	"go_boilerplate/internal/shared/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -13,6 +13,10 @@ type AuthHandler interface {
 	Login(c *fiber.Ctx) error
 	RefreshToken(c *fiber.Ctx) error
 	Logout(c *fiber.Ctx) error
+	VerifyEmail(c *fiber.Ctx) error
+	Verify2FA(c *fiber.Ctx) error
+	ResendVerification(c *fiber.Ctx) error
+	Resend2FA(c *fiber.Ctx) error
 }
 
 // authHandler implements AuthHandler interface
@@ -50,7 +54,12 @@ func (h *authHandler) Login(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusUnauthorized, "Login failed", err)
 	}
 
-	return utils.SuccessResponse(c, fiber.StatusOK, response, "Login successful")
+	message := "Login successful"
+	if response.Requires2FA {
+		message = "2FA Required"
+	}
+
+	return utils.SuccessResponse(c, fiber.StatusOK, response, message)
 }
 
 // RefreshToken refreshes an access token
@@ -78,4 +87,49 @@ func (h *authHandler) Logout(c *fiber.Ctx) error {
 	}
 
 	return utils.SuccessResponse(c, fiber.StatusOK, nil, "Logout successful")
+}
+
+// VerifyEmail verifies a user's email
+func (h *authHandler) VerifyEmail(c *fiber.Ctx) error {
+	req := c.Locals("validatedBody").(*dto.VerifyEmailRequest)
+
+	if err := h.service.VerifyEmail(req); err != nil {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Email verification failed", err)
+	}
+
+	return utils.SuccessResponse(c, fiber.StatusOK, nil, "Email verified successfully")
+}
+
+// Verify2FA verifies 2FA code
+func (h *authHandler) Verify2FA(c *fiber.Ctx) error {
+	req := c.Locals("validatedBody").(*dto.Verify2FARequest)
+
+	response, err := h.service.Verify2FA(req)
+	if err != nil {
+		return utils.ErrorResponse(c, fiber.StatusUnauthorized, "2FA verification failed", err)
+	}
+
+	return utils.SuccessResponse(c, fiber.StatusOK, response, "2FA verified successfully")
+}
+
+// ResendVerification resends the activation code
+func (h *authHandler) ResendVerification(c *fiber.Ctx) error {
+	req := c.Locals("validatedBody").(*dto.ResendCodeRequest)
+
+	if err := h.service.ResendVerification(req.Email); err != nil {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Failed to resend activation code", err)
+	}
+
+	return utils.SuccessResponse(c, fiber.StatusOK, nil, "Activation code resent successfully")
+}
+
+// Resend2FA resends the 2FA code
+func (h *authHandler) Resend2FA(c *fiber.Ctx) error {
+	req := c.Locals("validatedBody").(*dto.ResendCodeRequest)
+
+	if err := h.service.Resend2FA(req.Email); err != nil {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Failed to resend 2FA code", err)
+	}
+
+	return utils.SuccessResponse(c, fiber.StatusOK, nil, "2FA code resent successfully")
 }

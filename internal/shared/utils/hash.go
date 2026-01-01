@@ -1,8 +1,15 @@
 package utils
 
 import (
+	"strings"
+
 	"golang.org/x/crypto/bcrypt"
 )
+
+// IsHashed checks if a string is a bcrypt hash
+func IsHashed(password string) bool {
+	return strings.HasPrefix(password, "$2a$") || strings.HasPrefix(password, "$2b$") || strings.HasPrefix(password, "$2y$")
+}
 
 const (
 	// DefaultCost is the default bcrypt cost factor

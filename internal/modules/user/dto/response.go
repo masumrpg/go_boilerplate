@@ -11,6 +11,7 @@ type UserResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
+	IsVerified bool     `json:"is_verified"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -21,6 +22,7 @@ type UserRoleResponse struct {
 	Name      string     `json:"name"`
 	Email     string     `json:"email"`
 	Role      *RoleInfo  `json:"role"`
+	IsVerified bool      `json:"is_verified"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
 }
@@ -47,10 +49,4 @@ type PaginationMeta struct {
 	TotalPages int `json:"total_pages"`
 }
 
-// AuthResponse represents authentication response with tokens
-type AuthResponse struct {
-	AccessToken  string              `json:"access_token"`
-	RefreshToken string              `json:"refresh_token"`
-	User         UserRoleResponse    `json:"user"`
-}
 

@@ -3,13 +3,13 @@ package database
 import (
 	"fmt"
 
-	"go_boilerplate/internal/shared/config"
-	"go_boilerplate/internal/shared/utils"
 	roleModule "go_boilerplate/internal/modules/role"
 	userModule "go_boilerplate/internal/modules/user"
+	"go_boilerplate/internal/shared/config"
+	"go_boilerplate/internal/shared/utils"
 
-	"github.com/sirupsen/logrus"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -130,6 +130,7 @@ func SeedSuperAdmin(db *gorm.DB, cfg *config.Config, logger *logrus.Logger) erro
 		existingUser.Password = hashedPassword
 		existingUser.Name = cfg.SuperAdmin.Name
 		existingUser.RoleID = superAdminRole.ID
+		existingUser.IsVerified = true
 
 		if err := db.Save(&existingUser).Error; err != nil {
 			return fmt.Errorf("failed to update superadmin user: %w", err)
@@ -154,6 +155,7 @@ func SeedSuperAdmin(db *gorm.DB, cfg *config.Config, logger *logrus.Logger) erro
 		Email:    cfg.SuperAdmin.Email,
 		Password: hashedPassword,
 		RoleID:   superAdminRole.ID,
+		IsVerified: true,
 	}
 
 	if err := db.Create(superAdminUser).Error; err != nil {

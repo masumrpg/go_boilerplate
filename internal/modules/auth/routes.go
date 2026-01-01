@@ -1,20 +1,21 @@
 package auth
 
 import (
-	"go_boilerplate/internal/shared/config"
-	sharedmiddleware "go_boilerplate/internal/shared/middleware"
-	"go_boilerplate/internal/modules/user"
-	"go_boilerplate/internal/modules/role"
 	"go_boilerplate/internal/modules/auth/dto"
 	"go_boilerplate/internal/modules/email"
+	"go_boilerplate/internal/modules/role"
+	"go_boilerplate/internal/modules/user"
+	"go_boilerplate/internal/shared/config"
+	sharedmiddleware "go_boilerplate/internal/shared/middleware"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 // RegisterRoutes registers all auth-related routes
-func RegisterRoutes(app *fiber.App, db *gorm.DB, cfg *config.Config, logger *logrus.Logger) {
+func RegisterRoutes(app *fiber.App, db *gorm.DB, cfg *config.Config, logger *logrus.Logger, redisClient *redis.Client) {
 	// Initialize repositories
 	userRepo := user.NewUserRepository(db)
 	roleRepo := role.NewRoleRepository(db)
@@ -29,7 +30,7 @@ func RegisterRoutes(app *fiber.App, db *gorm.DB, cfg *config.Config, logger *log
 	}
 
 	// Initialize auth service
-	authService := NewAuthService(userService, db, cfg, emailService)
+	authService := NewAuthService(userService, db, cfg, emailService, redisClient)
 
 	// Initialize auth handler
 	authHandler := NewAuthHandler(authService)
@@ -43,4 +44,10 @@ func RegisterRoutes(app *fiber.App, db *gorm.DB, cfg *config.Config, logger *log
 	auth.Post("/login", sharedmiddleware.BodyValidator(&dto.LoginRequest{}), authHandler.Login)
 	auth.Post("/refresh", sharedmiddleware.BodyValidator(&dto.RefreshTokenRequest{}), authHandler.RefreshToken)
 	auth.Post("/logout", sharedmiddleware.BodyValidator(&dto.RefreshTokenRequest{}), authHandler.Logout)
+
+	// Add new verification endpoints
+	auth.Post("/verify-email", sharedmiddleware.BodyValidator(&dto.VerifyEmailRequest{}), authHandler.VerifyEmail)
+	auth.Post("/verify-2fa", sharedmiddleware.BodyValidator(&dto.Verify2FARequest{}), authHandler.Verify2FA)
+	auth.Post("/resend-verification", sharedmiddleware.BodyValidator(&dto.ResendCodeRequest{}), authHandler.ResendVerification)
+	auth.Post("/resend-2fa", sharedmiddleware.BodyValidator(&dto.ResendCodeRequest{}), authHandler.Resend2FA)
 }

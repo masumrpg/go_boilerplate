@@ -41,11 +41,11 @@ cmd/api/main.go          # Application entry point
 internal/
   shared/                # Shared components used across modules
     config/              # Configuration loading (Viper + .env)
-    database/            # Database connection (GORM + PostgreSQL) + migrations
+    database/            # Database connection (GORM + PostgreSQL) + migrations + redis
     middleware/          # Global middleware (auth, logger, CORS, validator, RBAC)
-    utils/               # Utility functions (JWT, hash, response, logger, validator)
+    utils/               # Utility functions (JWT, hash, response, logger, validator, random)
   modules/               # Feature modules
-    auth/                # Authentication (login, register, refresh tokens)
+    auth/                # Authentication (login, register, refresh tokens, verification)
     user/                # User management (CRUD)
     role/                # Role and permission management (RBAC)
     email/               # Email service (gomail)
@@ -72,7 +72,7 @@ module-name/
 
 - **model.go**: GORM entity with struct tags, relationships, and hooks
 - **repository.go**: CRUD operations, database queries only (no business logic)
-- **service.go**: Business logic, orchestrates repositories, transforms data
+- **service.go**: Business logic, orchestrates repositories, transforms data, integrates third party services (Email, Redis)
 - **handler.go**: HTTP parsing, calls service, formats responses
 - **routes.go**: Registers routes, applies middleware, dependency injection
 - **dto/request.go**: Input structs with validation tags
@@ -84,13 +84,13 @@ The application bootstraps in `cmd/api/main.go`:
 
 1. Load config (`config.LoadConfig()`)
 2. Initialize logger
-3. Initialize database connection
-4. Run table rename (development only - drops old tables)
-5. Run auto-migrations
+3. Initialize database connection (PostgreSQL)
+4. Initialize Redis connection
+5. Run migrations (manual via `cmd/migrate` or auto in dev)
 6. Seed initial roles (SuperAdmin, Admin, User)
 7. Create Fiber app
 8. Register global middleware (logger, CORS, recover)
-9. Register module routes (each module receives `db`, `cfg`, `logger`)
+9. Register module routes (each module receives `db`, `cfg`, `logger`, `redisClient`)
 10. Start server with graceful shutdown
 
 Each module's `RegisterRoutes()` function creates its own dependency chain:
@@ -100,8 +100,12 @@ Each module's `RegisterRoutes()` function creates its own dependency chain:
 
 ```
 HTTP Request → Global Middleware → Route Middleware → Handler → Service → Repository → Database
-  ↓
+  ↓                                                                     ↓
 Logger → CORS → JWT Auth → RBAC Check → Body Validator → Parse/Validate → Business Logic → Query → Response
+                                                                        ↓
+                                                                      Redis (OTP/Cache)
+                                                                        ↓
+                                                                      Email (SMTP)
 ```
 
 ### Middleware Usage
@@ -112,6 +116,40 @@ Logger → CORS → JWT Auth → RBAC Check → Body Validator → Parse/Validat
 - **RequirePermission**: Checks if authenticated user has a specific permission (users.create, roles.update)
 - **HTTPLogger**: Logs all HTTP requests/responses
 - **CORS**: Handles cross-origin requests
+
+## Security Features
+
+The API supports several security features that can be enabled/disabled via environment variables:
+
+### Account Activation (Email Verification)
+- **Flag**: `EMAIL_VERIFICATION_ENABLED`
+- **Flow**: New users receive a 6-digit OTP via email and must verify it before they can log in.
+- **Exceptions**: SuperAdmin is automatically verified.
+
+### Two-Factor Authentication (2FA)
+- **Flag**: `TWO_FACTOR_ENABLED`
+- **Flow**: After entering password, users receive a 6-digit OTP via email and must provide it to receive tokens.
+- **Exceptions**: SuperAdmin is exempt from 2FA flow.
+
+## Database & Migrations
+
+The project uses `golang-migrate` for versioned migrations.
+
+- **Migrations Path**: `db/migrations/`
+- **CLI Tool**: `go run cmd/migrate/main.go`
+- **Commands**: `-up`, `-down`, `-create NAME`
+
+### Table Naming Convention
+
+Tables use prefixes to indicate their type:
+
+**Master Tables** (prefix `m_`):
+- `m_users` - User accounts
+- `m_roles` - Role definitions
+
+**Transaction Tables** (prefix `t_`):
+- `t_refresh_tokens` - JWT refresh tokens
+- `t_oauth_accounts` - OAuth provider links
 
 ## RBAC System (Role-Based Access Control)
 

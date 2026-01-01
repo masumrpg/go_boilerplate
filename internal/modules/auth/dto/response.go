@@ -4,15 +4,18 @@ import (
 	"time"
 
 	"go_boilerplate/internal/modules/user/dto"
+
 	"github.com/google/uuid"
 )
 
 // AuthResponse represents an authentication response
 type AuthResponse struct {
-	AccessToken  string                    `json:"access_token"`
-	RefreshToken string                    `json:"refresh_token"`
-	ExpiresIn    int64                     `json:"expires_in"`
-	User         dto.UserRoleResponse      `json:"user"`
+	AccessToken  string                     `json:"access_token,omitempty"`
+	RefreshToken string                     `json:"refresh_token,omitempty"`
+	ExpiresIn    int64                      `json:"expires_in,omitempty"`
+	User         *dto.UserRoleResponse      `json:"user,omitempty"`
+	Message      string                     `json:"message,omitempty"`
+	Requires2FA  bool                       `json:"requires_2fa,omitempty"`
 }
 
 // MessageResponse represents a simple message response

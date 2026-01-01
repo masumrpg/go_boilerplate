@@ -134,7 +134,7 @@ func main() {
 	logger.Info("Registering module routes...")
 
 	// Auth routes (register, login, refresh, logout)
-	authModule.RegisterRoutes(app, db, cfg, logger)
+	authModule.RegisterRoutes(app, db, cfg, logger, redisClient)
 	logger.Info("✓ Auth routes registered")
 
 	// User routes (CRUD operations)

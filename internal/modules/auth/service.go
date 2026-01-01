@@ -1,17 +1,19 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"time"
 
-	"go_boilerplate/internal/shared/config"
-	"go_boilerplate/internal/shared/utils"
 	"go_boilerplate/internal/modules/auth/dto"
 	"go_boilerplate/internal/modules/email"
 	"go_boilerplate/internal/modules/user"
 	userdto "go_boilerplate/internal/modules/user/dto"
+	"go_boilerplate/internal/shared/config"
+	"go_boilerplate/internal/shared/utils"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -21,6 +23,10 @@ type AuthService interface {
 	Login(req *dto.LoginRequest) (*dto.AuthResponse, error)
 	RefreshToken(refreshToken string) (*dto.AuthResponse, error)
 	Logout(refreshToken string) error
+	VerifyEmail(req *dto.VerifyEmailRequest) error
+	Verify2FA(req *dto.Verify2FARequest) (*dto.AuthResponse, error)
+	ResendVerification(email string) error
+	Resend2FA(email string) error
 }
 
 // authService implements AuthService interface
@@ -30,10 +36,17 @@ type authService struct {
 	db           *gorm.DB
 	cfg          *config.Config
 	emailService email.EmailService
+	redis        *redis.Client
 }
 
 // NewAuthService creates a new auth service
-func NewAuthService(userService user.UserService, db *gorm.DB, cfg *config.Config, emailService email.EmailService) AuthService {
+func NewAuthService(
+	userService user.UserService,
+	db *gorm.DB,
+	cfg *config.Config,
+	emailService email.EmailService,
+	redis *redis.Client,
+) AuthService {
 	jwtManager := utils.NewJWTManager(
 		cfg.JWT.Secret,
 		cfg.JWT.AccessExpiry,
@@ -47,6 +60,7 @@ func NewAuthService(userService user.UserService, db *gorm.DB, cfg *config.Confi
 		db:           db,
 		cfg:          cfg,
 		emailService: emailService,
+		redis:        redis,
 	}
 }
 
@@ -65,55 +79,36 @@ func (s *authService) Register(req *dto.RegisterRequest) (*dto.AuthResponse, err
 		return nil, err
 	}
 
-	// Load user with role information
-	userWithRole, err := s.userService.GetProfileWithRole(createdUser.ID)
-	if err != nil {
-		return nil, errors.New("failed to load user role")
-	}
+	// Check if email verification is enabled
+	if s.cfg.Security.EmailVerificationEnabled {
+		// Generate and send verification code
+		code := utils.RandomIntString(6)
+		// Save 6-digit code to Redis with 10m expiry
+		key := "activation:" + req.Email
+		if err := s.redis.Set(context.Background(), key, code, 10*time.Minute).Err(); err != nil {
+			return nil, errors.New("failed to save verification code")
+		}
 
-	// Generate tokens with role information
-	roleSlug := ""
-	permissions := []string{}
-	if userWithRole.Role != nil {
-		roleSlug = userWithRole.Role.Slug
-		permissions = userWithRole.Role.Permissions
-	}
-
-	accessToken, refreshToken, err := s.jwtManager.GenerateTokenPair(
-		createdUser.ID,
-		createdUser.Email,
-		roleSlug,
-		permissions,
-	)
-	if err != nil {
-		return nil, errors.New("failed to generate tokens")
-	}
-
-	// Send welcome email if enabled
-	if s.emailService != nil && s.cfg.Email.Enabled {
-		// Send welcome email asynchronously (don't block the response)
+		// Send email asynchronously
 		go func() {
-			if err := s.emailService.SendWelcomeEmail(req.Email, req.Name); err != nil {
-				// Log error but don't fail the registration
-				println("Failed to send welcome email:", err.Error())
+			if s.emailService != nil {
+				// In a real app, use a better template
+				body := "<h1>Welcome!</h1><p>Your activation code is: <strong>" + code + "</strong></p>"
+				s.emailService.SendEmail(req.Email, "Activate Account", body)
 			}
 		}()
+
+		return &dto.AuthResponse{
+			Message: "Registration successful. Please check your email to activate your account.",
+		}, nil
 	}
 
-	// Save refresh token to database
-	if err := s.saveRefreshToken(createdUser.ID, refreshToken); err != nil {
-		return nil, err
+	// If verification disabled, set verified = true immediately (if not already default)
+	if !s.cfg.Security.EmailVerificationEnabled {
+		s.db.Model(&user.User{}).Where("id = ?", createdUser.ID).Update("is_verified", true)
 	}
 
-	// Calculate expires in (in seconds)
-	expiresIn := int64(s.cfg.JWT.AccessExpiry.Seconds())
-
-	return &dto.AuthResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		ExpiresIn:    expiresIn,
-		User:         *userWithRole,
-	}, nil
+	return s.generateAuthResponse(createdUser.ID)
 }
 
 // Login authenticates a user
@@ -124,8 +119,153 @@ func (s *authService) Login(req *dto.LoginRequest) (*dto.AuthResponse, error) {
 		return nil, errors.New("invalid email or password")
 	}
 
-	// Load user with role information
+	// Check verification status (skip for SuperAdmin)
+	// Get full profile to check role
 	userWithRole, err := s.userService.GetProfileWithRole(authenticatedUser.ID)
+	if err != nil {
+		return nil, errors.New("failed to load user profile")
+	}
+
+	isSuperAdmin := userWithRole.Role != nil && userWithRole.Role.Slug == "super_admin"
+
+	// If verification enabled and user not verified, deny login (unless SuperAdmin)
+	if s.cfg.Security.EmailVerificationEnabled && !userWithRole.IsVerified && !isSuperAdmin {
+		return nil, errors.New("account not verified. please verify your email")
+	}
+
+	// Check Two-Factor Authentication
+	// Applicable if enabled and NOT SuperAdmin
+	if s.cfg.Security.TwoFactorEnabled && !isSuperAdmin {
+		// Generate 2FA code
+		code := utils.RandomIntString(6)
+		key := "2fa:" + req.Email
+		if err := s.redis.Set(context.Background(), key, code, 5*time.Minute).Err(); err != nil {
+			return nil, errors.New("failed to generate 2fa code")
+		}
+
+		// Send Email
+		go func() {
+			if s.emailService != nil {
+				body := "<p>Your Login OTP is: <strong>" + code + "</strong></p>"
+				s.emailService.SendEmail(req.Email, "Login OTP", body)
+			}
+		}()
+
+		return &dto.AuthResponse{
+			User:        userWithRole,
+			Message:     "2FA Required",
+			Requires2FA: true,
+		}, nil
+	}
+
+	// Normal Login
+	return s.generateAuthResponse(authenticatedUser.ID)
+}
+
+// VerifyEmail verifies user email
+func (s *authService) VerifyEmail(req *dto.VerifyEmailRequest) error {
+	key := "activation:" + req.Email
+	storedCode, err := s.redis.Get(context.Background(), key).Result()
+	if err != nil || storedCode != req.Code {
+		return errors.New("invalid or expired activation code")
+	}
+
+	// Update user status
+	if err := s.db.Model(&user.User{}).Where("email = ?", req.Email).Update("is_verified", true).Error; err != nil {
+		return errors.New("failed to verify user")
+	}
+
+	// Delete code
+	s.redis.Del(context.Background(), key)
+	return nil
+}
+
+// Verify2FA verifies login OTP
+func (s *authService) Verify2FA(req *dto.Verify2FARequest) (*dto.AuthResponse, error) {
+	key := "2fa:" + req.Email
+	storedCode, err := s.redis.Get(context.Background(), key).Result()
+	if err != nil || storedCode != req.Code {
+		return nil, errors.New("invalid or expired OTP")
+	}
+
+	// Get User
+	foundUser, err := s.userService.GetByEmail(req.Email)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	// Delete code
+	s.redis.Del(context.Background(), key)
+
+	return s.generateAuthResponse(foundUser.ID)
+}
+
+// ResendVerification resends the activation code
+func (s *authService) ResendVerification(email string) error {
+	if !s.cfg.Security.EmailVerificationEnabled {
+		return errors.New("email verification is not enabled")
+	}
+
+	// Check if user exists and is not verified
+	user, err := s.userService.GetByEmail(email)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	if user.IsVerified {
+		return errors.New("account already verified")
+	}
+
+	// Generate and send code
+	code := utils.RandomIntString(6)
+	key := "activation:" + email
+	if err := s.redis.Set(context.Background(), key, code, 10*time.Minute).Err(); err != nil {
+		return errors.New("failed to resend verification code")
+	}
+
+	go func() {
+		if s.emailService != nil {
+			body := "<h1>Activation Code</h1><p>Your new activation code is: <strong>" + code + "</strong></p>"
+			s.emailService.SendEmail(email, "Resend Activation Code", body)
+		}
+	}()
+
+	return nil
+}
+
+// Resend2FA resends the 2FA code
+func (s *authService) Resend2FA(email string) error {
+	if !s.cfg.Security.TwoFactorEnabled {
+		return errors.New("2FA is not enabled")
+	}
+
+	// Check if user exists
+	_, err := s.userService.GetByEmail(email)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	// Generate and send code
+	code := utils.RandomIntString(6)
+	key := "2fa:" + email
+	if err := s.redis.Set(context.Background(), key, code, 5*time.Minute).Err(); err != nil {
+		return errors.New("failed to resend 2FA code")
+	}
+
+	go func() {
+		if s.emailService != nil {
+			body := "<p>Your new Login OTP is: <strong>" + code + "</strong></p>"
+			s.emailService.SendEmail(email, "Resend Login OTP", body)
+		}
+	}()
+
+	return nil
+}
+
+// generateAuthResponse helps to dry up token generation logic
+func (s *authService) generateAuthResponse(userID uuid.UUID) (*dto.AuthResponse, error) {
+	// Load user with role information
+	userWithRole, err := s.userService.GetProfileWithRole(userID)
 	if err != nil {
 		return nil, errors.New("failed to load user role")
 	}
@@ -139,8 +279,8 @@ func (s *authService) Login(req *dto.LoginRequest) (*dto.AuthResponse, error) {
 	}
 
 	accessToken, refreshToken, err := s.jwtManager.GenerateTokenPair(
-		authenticatedUser.ID,
-		authenticatedUser.Email,
+		userID,
+		userWithRole.Email,
 		roleSlug,
 		permissions,
 	)
@@ -149,7 +289,7 @@ func (s *authService) Login(req *dto.LoginRequest) (*dto.AuthResponse, error) {
 	}
 
 	// Save refresh token to database
-	if err := s.saveRefreshToken(authenticatedUser.ID, refreshToken); err != nil {
+	if err := s.saveRefreshToken(userID, refreshToken); err != nil {
 		return nil, err
 	}
 
@@ -160,9 +300,10 @@ func (s *authService) Login(req *dto.LoginRequest) (*dto.AuthResponse, error) {
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    expiresIn,
-		User:         *userWithRole,
+		User:         userWithRole,
 	}, nil
 }
+
 
 // RefreshToken refreshes an access token using a refresh token
 func (s *authService) RefreshToken(refreshToken string) (*dto.AuthResponse, error) {
@@ -217,7 +358,7 @@ func (s *authService) RefreshToken(refreshToken string) (*dto.AuthResponse, erro
 		AccessToken:  newAccessToken,
 		RefreshToken: newRefreshToken,
 		ExpiresIn:    expiresIn,
-		User:         *userProfile,
+		User:         userProfile,
 	}, nil
 }
 

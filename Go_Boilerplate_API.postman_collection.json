@@ -182,6 +182,114 @@
           "response": []
         },
         {
+          "name": "Verify Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"code\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/verify-email",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "verify-email"]
+            },
+            "description": "Verify user email using OTP"
+          },
+          "response": []
+        },
+        {
+          "name": "Verify 2FA",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.json().success) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set(\"access_token\", jsonData.data.access_token);",
+                  "    pm.collectionVariables.set(\"refresh_token\", jsonData.data.refresh_token);",
+                  "    pm.collectionVariables.set(\"user_id\", jsonData.data.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"code\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/verify-2fa",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "verify-2fa"]
+            },
+            "description": "Verify 2FA code and get authentication tokens"
+          },
+          "response": []
+        },
+        {
+          "name": "Resend Verification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/resend-verification",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "resend-verification"]
+            },
+            "description": "Resend email verification OTP"
+          },
+          "response": []
+        },
+        {
+          "name": "Resend 2FA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/resend-2fa",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "resend-2fa"]
+            },
+            "description": "Resend 2FA login OTP"
+          },
+          "response": []
+        },
+        {
           "name": "Logout",
           "event": [
             {

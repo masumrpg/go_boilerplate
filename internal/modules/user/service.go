@@ -4,9 +4,9 @@ import (
 	"errors"
 	"math"
 
-	"go_boilerplate/internal/shared/utils"
 	"go_boilerplate/internal/modules/role"
 	userdto "go_boilerplate/internal/modules/user/dto"
+	"go_boilerplate/internal/shared/utils"
 
 	"github.com/google/uuid"
 )
@@ -23,6 +23,7 @@ type UserService interface {
 	AssignRole(userID uuid.UUID, roleID uuid.UUID) (*userdto.UserRoleResponse, error)
 	HasPermission(userID uuid.UUID, permission string) (bool, error)
 	HasRole(userID uuid.UUID, roleSlug string) (bool, error)
+	GetByEmail(email string) (*User, error)
 }
 
 // userService implements UserService interface
@@ -313,4 +314,9 @@ func (s *userService) HasRole(userID uuid.UUID, roleSlug string) (bool, error) {
 	}
 
 	return user.Role.Slug == roleSlug, nil
+}
+
+// GetByEmail gets a user by email
+func (s *userService) GetByEmail(email string) (*User, error) {
+	return s.repo.FindByEmail(email)
 }
