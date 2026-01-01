@@ -209,5 +209,9 @@ go run cmd/api/main.go
 - **Granular RBAC**: Use `RequireRole` or `RequirePermission` middleware to protect resources.
 - **Graceful Shutdown**: Automatically closes DB and Redis connections on SIGINT/SIGTERM.
 
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 ---
-© 2026 Go Boilerplate Squad.
+© 2026 Ma'sum.
