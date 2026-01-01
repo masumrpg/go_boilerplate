@@ -141,6 +141,11 @@ Aplikasi ini mendukung fitur keamanan tambahan yang bisa diaktifkan melalui `.en
 - **Deskripsi**: Setelah memasukkan password, user harus memasukkan kode OTP yang dikirim ke email.
 - **Penyimpanan**: Kode OTP disimpan di Redis (TTL 5 menit).
 
+#### 3. Session Management & Device Tracking
+- **Deskripsi**: Setiap login menghasilkan session baru yang menyimpan metadata perangkat.
+- **Metadata**: Menyimpan IP Address, User Agent, dan Device ID (`X-Device-ID`).
+- **Kontrol User**: User bisa melihat daftar login active, logout dari perangkat tertentu, atau memblokir perangkat.
+
 ---
 
 ## 💾 Database Migrations
@@ -214,3 +219,4 @@ Fitur opsional via `.env`:
 - `EMAIL_ENABLED`: Aktifkan pengiriman email.
 - `EMAIL_VERIFICATION_ENABLED`: Aktifkan verifikasi email user baru.
 - `TWO_FACTOR_ENABLED`: Aktifkan 2FA login.
+- `SERVER_MODE`: Jika `development`, menghapus tabel lama (users, etc) dan rename ke prefix baru.

@@ -34,3 +34,10 @@ type Verify2FARequest struct {
 type ResendCodeRequest struct {
 	Email string `json:"email" validate:"required,email"`
 }
+
+// SessionMetadata represents device/session metadata from the request
+type SessionMetadata struct {
+	IPAddress string
+	UserAgent string
+	DeviceID  string
+}

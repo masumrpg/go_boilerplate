@@ -131,6 +131,11 @@ The API supports several security features that can be enabled/disabled via envi
 - **Flow**: After entering password, users receive a 6-digit OTP via email and must provide it to receive tokens.
 - **Exceptions**: SuperAdmin is exempt from 2FA flow.
 
+### Session Management
+- **Flow**: Refresh tokens are stored in the database as **Sessions** with device metadata.
+- **Metadata Recorded**: IP Address, User Agent, Device ID (from `X-Device-ID` header).
+- **Features**: List active sessions, logout from specific devices, block specific sessions.
+
 ## Database & Migrations
 
 The project uses `golang-migrate` for versioned migrations.
@@ -148,7 +153,7 @@ Tables use prefixes to indicate their type:
 - `m_roles` - Role definitions
 
 **Transaction Tables** (prefix `t_`):
-- `t_refresh_tokens` - JWT refresh tokens
+- `t_sessions` - User sessions and refresh tokens (contains device metadata)
 - `t_oauth_accounts` - OAuth provider links
 
 ## RBAC System (Role-Based Access Control)
@@ -270,6 +275,9 @@ The API enforces strict role assignment rules to maintain security:
 **Authenticated Routes (Any User):**
 - `/api/v1/users/me` - Get/update own profile
 - `/api/v1/users/:id` (PUT) - Update user (self or admin)
+- `/api/v1/auth/sessions` (GET) - List all active sessions
+- `/api/v1/auth/sessions/:id` (DELETE) - Logout from a specific device
+- `/api/v1/auth/sessions/:id/block` (PATCH) - Block a specific session
 
 **Admin/SuperAdmin Routes:**
 - `/api/v1/users` (GET) - List all users
@@ -291,7 +299,7 @@ Tables use prefixes to indicate their type:
 - `m_roles` - Role definitions
 
 **Transaction Tables** (prefix `t_`):
-- `t_refresh_tokens` - JWT refresh tokens
+- `t_sessions` - User sessions and refresh tokens
 - `t_oauth_accounts` - OAuth provider links
 
 **Migration Strategy:**

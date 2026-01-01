@@ -54,6 +54,7 @@ func RenameTables(db *gorm.DB, logger *logrus.Logger) error {
 		"users",
 		"oauth_accounts",
 		"refresh_tokens",
+		"t_refresh_tokens",
 	}
 
 	// Drop old tables if they exist

@@ -65,7 +65,7 @@ func main() {
 		migrationModels := []any{
 			&roleModule.Role{},
 			&userModule.User{},
-			&dto.RefreshToken{},
+			&dto.Session{},
 			&oauthdto.OAuthAccount{},
 		}
 

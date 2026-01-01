@@ -19,14 +19,17 @@ import (
 
 // AuthService defines the interface for authentication business logic
 type AuthService interface {
-	Register(req *dto.RegisterRequest) (*dto.AuthResponse, error)
-	Login(req *dto.LoginRequest) (*dto.AuthResponse, error)
-	RefreshToken(refreshToken string) (*dto.AuthResponse, error)
+	Register(req *dto.RegisterRequest, metadata dto.SessionMetadata) (*dto.AuthResponse, error)
+	Login(req *dto.LoginRequest, metadata dto.SessionMetadata) (*dto.AuthResponse, error)
+	RefreshToken(refreshToken string, metadata dto.SessionMetadata) (*dto.AuthResponse, error)
 	Logout(refreshToken string) error
 	VerifyEmail(req *dto.VerifyEmailRequest) error
-	Verify2FA(req *dto.Verify2FARequest) (*dto.AuthResponse, error)
+	Verify2FA(req *dto.Verify2FARequest, metadata dto.SessionMetadata) (*dto.AuthResponse, error)
 	ResendVerification(email string) error
 	Resend2FA(email string) error
+	GetSessions(userID uuid.UUID) ([]dto.Session, error)
+	DeleteSession(userID uuid.UUID, sessionID uuid.UUID) error
+	BlockSession(userID uuid.UUID, sessionID uuid.UUID) error
 }
 
 // authService implements AuthService interface
@@ -65,7 +68,7 @@ func NewAuthService(
 }
 
 // Register registers a new user
-func (s *authService) Register(req *dto.RegisterRequest) (*dto.AuthResponse, error) {
+func (s *authService) Register(req *dto.RegisterRequest, metadata dto.SessionMetadata) (*dto.AuthResponse, error) {
 	// Create user request
 	createUserReq := &userdto.CreateUserRequest{
 		Name:     req.Name,
@@ -108,11 +111,11 @@ func (s *authService) Register(req *dto.RegisterRequest) (*dto.AuthResponse, err
 		s.db.Model(&user.User{}).Where("id = ?", createdUser.ID).Update("is_verified", true)
 	}
 
-	return s.generateAuthResponse(createdUser.ID)
+	return s.generateAuthResponse(createdUser.ID, metadata)
 }
 
 // Login authenticates a user
-func (s *authService) Login(req *dto.LoginRequest) (*dto.AuthResponse, error) {
+func (s *authService) Login(req *dto.LoginRequest, metadata dto.SessionMetadata) (*dto.AuthResponse, error) {
 	// Validate password
 	authenticatedUser, err := s.userService.ValidatePassword(req.Email, req.Password)
 	if err != nil {
@@ -159,7 +162,7 @@ func (s *authService) Login(req *dto.LoginRequest) (*dto.AuthResponse, error) {
 	}
 
 	// Normal Login
-	return s.generateAuthResponse(authenticatedUser.ID)
+	return s.generateAuthResponse(authenticatedUser.ID, metadata)
 }
 
 // VerifyEmail verifies user email
@@ -181,7 +184,7 @@ func (s *authService) VerifyEmail(req *dto.VerifyEmailRequest) error {
 }
 
 // Verify2FA verifies login OTP
-func (s *authService) Verify2FA(req *dto.Verify2FARequest) (*dto.AuthResponse, error) {
+func (s *authService) Verify2FA(req *dto.Verify2FARequest, metadata dto.SessionMetadata) (*dto.AuthResponse, error) {
 	key := "2fa:" + req.Email
 	storedCode, err := s.redis.Get(context.Background(), key).Result()
 	if err != nil || storedCode != req.Code {
@@ -197,7 +200,7 @@ func (s *authService) Verify2FA(req *dto.Verify2FARequest) (*dto.AuthResponse, e
 	// Delete code
 	s.redis.Del(context.Background(), key)
 
-	return s.generateAuthResponse(foundUser.ID)
+	return s.generateAuthResponse(foundUser.ID, metadata)
 }
 
 // ResendVerification resends the activation code
@@ -263,7 +266,7 @@ func (s *authService) Resend2FA(email string) error {
 }
 
 // generateAuthResponse helps to dry up token generation logic
-func (s *authService) generateAuthResponse(userID uuid.UUID) (*dto.AuthResponse, error) {
+func (s *authService) generateAuthResponse(userID uuid.UUID, metadata dto.SessionMetadata) (*dto.AuthResponse, error) {
 	// Load user with role information
 	userWithRole, err := s.userService.GetProfileWithRole(userID)
 	if err != nil {
@@ -288,8 +291,8 @@ func (s *authService) generateAuthResponse(userID uuid.UUID) (*dto.AuthResponse,
 		return nil, errors.New("failed to generate tokens")
 	}
 
-	// Save refresh token to database
-	if err := s.saveRefreshToken(userID, refreshToken); err != nil {
+	// Save session to database
+	if err := s.saveSession(userID, refreshToken, metadata); err != nil {
 		return nil, err
 	}
 
@@ -306,17 +309,17 @@ func (s *authService) generateAuthResponse(userID uuid.UUID) (*dto.AuthResponse,
 
 
 // RefreshToken refreshes an access token using a refresh token
-func (s *authService) RefreshToken(refreshToken string) (*dto.AuthResponse, error) {
+func (s *authService) RefreshToken(refreshToken string, metadata dto.SessionMetadata) (*dto.AuthResponse, error) {
 	// Validate refresh token
 	claims, err := s.jwtManager.ValidateToken(refreshToken)
 	if err != nil {
 		return nil, errors.New("invalid or expired refresh token")
 	}
 
-	// Check if refresh token exists in database
-	var storedToken dto.RefreshToken
-	if err := s.db.Where("token = ? AND expires_at > ?", refreshToken, time.Now()).First(&storedToken).Error; err != nil {
-		return nil, errors.New("refresh token not found or expired")
+	// Check if session exists in database
+	var storedSession dto.Session
+	if err := s.db.Where("token = ? AND expires_at > ? AND is_blocked = ?", refreshToken, time.Now(), false).First(&storedSession).Error; err != nil {
+		return nil, errors.New("session not found, expired, or blocked")
 	}
 
 	// Get user profile with role
@@ -343,11 +346,11 @@ func (s *authService) RefreshToken(refreshToken string) (*dto.AuthResponse, erro
 		return nil, errors.New("failed to generate new tokens")
 	}
 
-	// Delete old refresh token
-	s.db.Delete(&storedToken)
+	// Delete old session
+	s.db.Delete(&storedSession)
 
-	// Save new refresh token
-	if err := s.saveRefreshToken(claims.UserID, newRefreshToken); err != nil {
+	// Save new session
+	if err := s.saveSession(claims.UserID, newRefreshToken, metadata); err != nil {
 		return nil, err
 	}
 
@@ -364,27 +367,56 @@ func (s *authService) RefreshToken(refreshToken string) (*dto.AuthResponse, erro
 
 // Logout logs out a user by deleting their refresh token
 func (s *authService) Logout(refreshToken string) error {
-	// Delete refresh token from database
-	if err := s.db.Where("token = ?", refreshToken).Delete(&dto.RefreshToken{}).Error; err != nil {
+	// Delete session from database
+	if err := s.db.Where("token = ?", refreshToken).Delete(&dto.Session{}).Error; err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// saveRefreshToken saves a refresh token to the database
-func (s *authService) saveRefreshToken(userID uuid.UUID, token string) error {
+// saveSession saves a session to the database
+func (s *authService) saveSession(userID uuid.UUID, token string, metadata dto.SessionMetadata) error {
 	expiresAt := time.Now().Add(s.cfg.JWT.RefreshExpiry)
 
-	refreshToken := &dto.RefreshToken{
+	session := &dto.Session{
 		UserID:    userID,
 		Token:     token,
+		IPAddress: metadata.IPAddress,
+		UserAgent: metadata.UserAgent,
+		DeviceID:  metadata.DeviceID,
 		ExpiresAt: expiresAt,
+		LastActive: time.Now(),
 	}
 
-	if err := s.db.Create(refreshToken).Error; err != nil {
+	if err := s.db.Create(session).Error; err != nil {
 		return err
 	}
 
+	return nil
+}
+
+// GetSessions returns all active sessions for a user
+func (s *authService) GetSessions(userID uuid.UUID) ([]dto.Session, error) {
+	var sessions []dto.Session
+	if err := s.db.Where("user_id = ?", userID).Order("last_active desc").Find(&sessions).Error; err != nil {
+		return nil, err
+	}
+	return sessions, nil
+}
+
+// DeleteSession deletes a specific session
+func (s *authService) DeleteSession(userID uuid.UUID, sessionID uuid.UUID) error {
+	if err := s.db.Where("id = ? AND user_id = ?", sessionID, userID).Delete(&dto.Session{}).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// BlockSession blocks a specific session
+func (s *authService) BlockSession(userID uuid.UUID, sessionID uuid.UUID) error {
+	if err := s.db.Model(&dto.Session{}).Where("id = ? AND user_id = ?", sessionID, userID).Update("is_blocked", true).Error; err != nil {
+		return err
+	}
 	return nil
 }

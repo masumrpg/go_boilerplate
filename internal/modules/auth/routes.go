@@ -50,4 +50,10 @@ func RegisterRoutes(app *fiber.App, db *gorm.DB, cfg *config.Config, logger *log
 	auth.Post("/verify-2fa", sharedmiddleware.BodyValidator(&dto.Verify2FARequest{}), authHandler.Verify2FA)
 	auth.Post("/resend-verification", sharedmiddleware.BodyValidator(&dto.ResendCodeRequest{}), authHandler.ResendVerification)
 	auth.Post("/resend-2fa", sharedmiddleware.BodyValidator(&dto.ResendCodeRequest{}), authHandler.Resend2FA)
+
+	// Protected session management routes
+	sessions := auth.Group("/sessions", sharedmiddleware.JWTAuth(cfg))
+	sessions.Get("/", authHandler.GetSessions)
+	sessions.Delete("/:id", authHandler.DeleteSession)
+	sessions.Patch("/:id/block", authHandler.BlockSession)
 }

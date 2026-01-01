@@ -290,6 +290,80 @@
           "response": []
         },
         {
+          "name": "Session Management",
+          "item": [
+            {
+              "name": "List Active Sessions",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/sessions",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "auth", "sessions"]
+                },
+                "description": "List all active sessions for the current user"
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Session (Logout from Device)",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/sessions/:id",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "auth", "sessions", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": ""
+                    }
+                  ]
+                },
+                "description": "Logout from a specific device/session ID"
+              },
+              "response": []
+            },
+            {
+              "name": "Block Session (Block Device)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/sessions/:id/block",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "auth", "sessions", ":id", "block"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": ""
+                    }
+                  ]
+                },
+                "description": "Block a specific device/session ID"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
           "name": "Logout",
           "event": [
             {
