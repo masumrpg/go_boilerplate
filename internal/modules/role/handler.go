@@ -28,6 +28,17 @@ func NewRoleHandler(service RoleService) RoleHandler {
 }
 
 // GetRoles gets all roles with pagination
+// @Summary List all roles
+// @Description Retrieve a paginated list of all user roles (SuperAdmin only).
+// @Tags Roles
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number (default: 1)"
+// @Param limit query int false "Items per page (default: 10, max: 100)"
+// @Success 200 {object} utils.APIResponse{data=[]dto.RoleResponse} "Roles retrieved"
+// @Failure 401 {object} utils.APIResponse "Unauthorized"
+// @Failure 403 {object} utils.APIResponse "Forbidden"
+// @Router /roles [get]
 func (h *roleHandler) GetRoles(c *fiber.Ctx) error {
 	// Parse query parameters
 	page := c.QueryInt("page", 1)
@@ -50,6 +61,17 @@ func (h *roleHandler) GetRoles(c *fiber.Ctx) error {
 }
 
 // GetRole gets a role by ID
+// @Summary Get role by ID
+// @Description Retrieve details of a specific role by its ID (SuperAdmin only).
+// @Tags Roles
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Role ID (UUID)"
+// @Success 200 {object} utils.APIResponse{data=dto.RoleResponse} "Role retrieved"
+// @Failure 400 {object} utils.APIResponse "Invalid role ID"
+// @Failure 401 {object} utils.APIResponse "Unauthorized"
+// @Failure 404 {object} utils.APIResponse "Role not found"
+// @Router /roles/{id} [get]
 func (h *roleHandler) GetRole(c *fiber.Ctx) error {
 	// Parse role ID
 	roleID, err := uuid.Parse(c.Params("id"))
@@ -67,6 +89,17 @@ func (h *roleHandler) GetRole(c *fiber.Ctx) error {
 }
 
 // CreateRole creates a new role
+// @Summary Create role
+// @Description Create a new security role (SuperAdmin only).
+// @Tags Roles
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.CreateRoleRequest true "Role data"
+// @Success 201 {object} utils.APIResponse{data=dto.RoleResponse} "Role created"
+// @Failure 400 {object} utils.APIResponse "Invalid request"
+// @Failure 401 {object} utils.APIResponse "Unauthorized"
+// @Router /roles [post]
 func (h *roleHandler) CreateRole(c *fiber.Ctx) error {
 	// Get validated body
 	validatedBody := c.Locals("validatedBody").(*dto.CreateRoleRequest)
@@ -81,6 +114,18 @@ func (h *roleHandler) CreateRole(c *fiber.Ctx) error {
 }
 
 // UpdateRole updates a role
+// @Summary Update role
+// @Description Update name or permissions of a security role (SuperAdmin only).
+// @Tags Roles
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Role ID (UUID)"
+// @Param request body dto.UpdateRoleRequest true "Update data"
+// @Success 200 {object} utils.APIResponse{data=dto.RoleResponse} "Role updated"
+// @Failure 400 {object} utils.APIResponse "Invalid request"
+// @Failure 401 {object} utils.APIResponse "Unauthorized"
+// @Router /roles/{id} [put]
 func (h *roleHandler) UpdateRole(c *fiber.Ctx) error {
 	// Parse role ID
 	roleID, err := uuid.Parse(c.Params("id"))
@@ -101,6 +146,15 @@ func (h *roleHandler) UpdateRole(c *fiber.Ctx) error {
 }
 
 // DeleteRole deletes a role
+// @Summary Delete role
+// @Description Permantently remove a security role (SuperAdmin only).
+// @Tags Roles
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Role ID (UUID)"
+// @Success 200 {object} utils.APIResponse "Role deleted"
+// @Failure 400 {object} utils.APIResponse "Invalid role ID"
+// @Router /roles/{id} [delete]
 func (h *roleHandler) DeleteRole(c *fiber.Ctx) error {
 	// Parse role ID
 	roleID, err := uuid.Parse(c.Params("id"))

@@ -1,0 +1,1070 @@
+basePath: /api/v1
+definitions:
+  go_boilerplate_internal_modules_auth_dto.AuthResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      message:
+        type: string
+      refresh_token:
+        type: string
+      requires_2fa:
+        type: boolean
+      user:
+        $ref: '#/definitions/go_boilerplate_internal_modules_user_dto.UserRoleResponse'
+    type: object
+  go_boilerplate_internal_modules_auth_dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  go_boilerplate_internal_modules_auth_dto.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  go_boilerplate_internal_modules_auth_dto.RegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 3
+        type: string
+      password:
+        maxLength: 50
+        minLength: 6
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  go_boilerplate_internal_modules_auth_dto.ResendCodeRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  go_boilerplate_internal_modules_auth_dto.Session:
+    properties:
+      created_at:
+        type: string
+      device_id:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      ip_address:
+        type: string
+      is_blocked:
+        type: boolean
+      last_active:
+        type: string
+      token:
+        type: string
+      user_agent:
+        type: string
+      user_id:
+        type: string
+    type: object
+  go_boilerplate_internal_modules_auth_dto.Verify2FARequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+    required:
+    - code
+    - email
+    type: object
+  go_boilerplate_internal_modules_auth_dto.VerifyEmailRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+    required:
+    - code
+    - email
+    type: object
+  go_boilerplate_internal_modules_role_dto.CreateRoleRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 100
+        minLength: 3
+        type: string
+      permissions:
+        items:
+          type: string
+        minItems: 1
+        type: array
+      slug:
+        maxLength: 50
+        minLength: 2
+        type: string
+    required:
+    - name
+    - permissions
+    - slug
+    type: object
+  go_boilerplate_internal_modules_role_dto.RoleResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      slug:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  go_boilerplate_internal_modules_role_dto.UpdateRoleRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 100
+        minLength: 3
+        type: string
+      permissions:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    type: object
+  go_boilerplate_internal_modules_user_dto.AssignRoleRequest:
+    properties:
+      role_id:
+        type: string
+    required:
+    - role_id
+    type: object
+  go_boilerplate_internal_modules_user_dto.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 3
+        type: string
+      password:
+        maxLength: 50
+        minLength: 6
+        type: string
+      role_id:
+        description: 'Optional: if not provided, defaults to user role'
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  go_boilerplate_internal_modules_user_dto.RoleInfo:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      slug:
+        type: string
+    type: object
+  go_boilerplate_internal_modules_user_dto.UpdateUserRequest:
+    properties:
+      email:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 3
+        type: string
+      role_id:
+        description: 'Optional: can update role to user or admin only'
+        type: string
+    type: object
+  go_boilerplate_internal_modules_user_dto.UserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      is_verified:
+        type: boolean
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  go_boilerplate_internal_modules_user_dto.UserRoleResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      is_verified:
+        type: boolean
+      name:
+        type: string
+      role:
+        $ref: '#/definitions/go_boilerplate_internal_modules_user_dto.RoleInfo'
+      updated_at:
+        type: string
+    type: object
+  go_boilerplate_internal_shared_utils.APIResponse:
+    properties:
+      code:
+        type: integer
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is a robust Go REST API boilerplate using Fiber, GORM, and PostgreSQL.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Go Boilerplate API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return tokens.
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/go_boilerplate_internal_modules_auth_dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_boilerplate_internal_modules_auth_dto.AuthResponse'
+              type: object
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      summary: Login user
+      tags:
+      - Auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Invalidate the refresh token.
+      parameters:
+      - description: Refresh token to invalidate
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/go_boilerplate_internal_modules_auth_dto.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout successful
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "500":
+          description: Logout failed
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      summary: Logout user
+      tags:
+      - Auth
+  /auth/me:
+    get:
+      description: Retrieve the profile information of the currently authenticated
+        user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile retrieved
+          schema:
+            allOf:
+            - $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_boilerplate_internal_modules_user_dto.UserRoleResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user profile
+      tags:
+      - Auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Get a new access token using a refresh token.
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/go_boilerplate_internal_modules_auth_dto.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token refreshed
+          schema:
+            allOf:
+            - $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_boilerplate_internal_modules_auth_dto.AuthResponse'
+              type: object
+        "401":
+          description: Invalid or expired refresh token
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      summary: Refresh access token
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account with name, email and password.
+      parameters:
+      - description: Registration data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/go_boilerplate_internal_modules_auth_dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Registration successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_boilerplate_internal_modules_auth_dto.AuthResponse'
+              type: object
+        "400":
+          description: Invalid request data
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      summary: Register a new user
+      tags:
+      - Auth
+  /auth/resend-2fa:
+    post:
+      consumes:
+      - application/json
+      description: Request a new 2FA code to be sent to email.
+      parameters:
+      - description: Email address
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/go_boilerplate_internal_modules_auth_dto.ResendCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Code resent
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      summary: Resend 2FA email
+      tags:
+      - Auth
+  /auth/resend-verification:
+    post:
+      consumes:
+      - application/json
+      description: Request a new activation code to be sent to email.
+      parameters:
+      - description: Email address
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/go_boilerplate_internal_modules_auth_dto.ResendCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Code resent
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      summary: Resend verification email
+      tags:
+      - Auth
+  /auth/sessions:
+    get:
+      description: Retrieve all active login sessions/devices for the current user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Sessions retrieved
+          schema:
+            allOf:
+            - $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/go_boilerplate_internal_modules_auth_dto.Session'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get active sessions
+      tags:
+      - Auth
+  /auth/sessions/{id}:
+    delete:
+      description: Terminate a specific session by its ID.
+      parameters:
+      - description: Session ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Session deleted
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "400":
+          description: Invalid session ID
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Logout from a specific device
+      tags:
+      - Auth
+  /auth/sessions/{id}/block:
+    patch:
+      description: Block a session so it cannot be used anymore.
+      parameters:
+      - description: Session ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Session blocked
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "400":
+          description: Invalid session ID
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Block a specific device/session
+      tags:
+      - Auth
+  /auth/verify-2fa:
+    post:
+      consumes:
+      - application/json
+      description: Complete login using the 2FA code sent to email.
+      parameters:
+      - description: 2FA data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/go_boilerplate_internal_modules_auth_dto.Verify2FARequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 2FA verified
+          schema:
+            allOf:
+            - $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_boilerplate_internal_modules_auth_dto.AuthResponse'
+              type: object
+        "401":
+          description: Invalid or expired OTP
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      summary: Verify 2FA code
+      tags:
+      - Auth
+  /auth/verify-email:
+    post:
+      consumes:
+      - application/json
+      description: Complete account activation using the code sent to email.
+      parameters:
+      - description: Verification data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/go_boilerplate_internal_modules_auth_dto.VerifyEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Email verified
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "400":
+          description: Invalid or expired code
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      summary: Verify email
+      tags:
+      - Auth
+  /oauth/github:
+    get:
+      description: Get the URL to initiate GitHub OAuth2 login.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Auth URL retrieved
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      summary: GitHub Login
+      tags:
+      - OAuth
+  /oauth/github/callback:
+    get:
+      description: Handle the callback from GitHub OAuth2.
+      parameters:
+      - description: Authorization code from GitHub
+        in: query
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "400":
+          description: Authentication failed
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      summary: GitHub Callback
+      tags:
+      - OAuth
+  /oauth/google:
+    get:
+      description: Get the URL to initiate Google OAuth2 login.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Auth URL retrieved
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      summary: Google Login
+      tags:
+      - OAuth
+  /oauth/google/callback:
+    get:
+      description: Handle the callback from Google OAuth2.
+      parameters:
+      - description: Authorization code from Google
+        in: query
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "400":
+          description: Authentication failed
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      summary: Google Callback
+      tags:
+      - OAuth
+  /roles:
+    get:
+      description: Retrieve a paginated list of all user roles (SuperAdmin only).
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 10, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Roles retrieved
+          schema:
+            allOf:
+            - $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/go_boilerplate_internal_modules_role_dto.RoleResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List all roles
+      tags:
+      - Roles
+    post:
+      consumes:
+      - application/json
+      description: Create a new security role (SuperAdmin only).
+      parameters:
+      - description: Role data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/go_boilerplate_internal_modules_role_dto.CreateRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Role created
+          schema:
+            allOf:
+            - $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_boilerplate_internal_modules_role_dto.RoleResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create role
+      tags:
+      - Roles
+  /roles/{id}:
+    delete:
+      description: Permantently remove a security role (SuperAdmin only).
+      parameters:
+      - description: Role ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role deleted
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "400":
+          description: Invalid role ID
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete role
+      tags:
+      - Roles
+    get:
+      description: Retrieve details of a specific role by its ID (SuperAdmin only).
+      parameters:
+      - description: Role ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role retrieved
+          schema:
+            allOf:
+            - $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_boilerplate_internal_modules_role_dto.RoleResponse'
+              type: object
+        "400":
+          description: Invalid role ID
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "404":
+          description: Role not found
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get role by ID
+      tags:
+      - Roles
+    put:
+      consumes:
+      - application/json
+      description: Update name or permissions of a security role (SuperAdmin only).
+      parameters:
+      - description: Role ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/go_boilerplate_internal_modules_role_dto.UpdateRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role updated
+          schema:
+            allOf:
+            - $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_boilerplate_internal_modules_role_dto.RoleResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update role
+      tags:
+      - Roles
+  /users:
+    get:
+      description: Retrieve a paginated list of all registered users.
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 10, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Users retrieved
+          schema:
+            allOf:
+            - $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/go_boilerplate_internal_modules_user_dto.UserResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List all users
+      tags:
+      - Users
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account (Admin only).
+      parameters:
+      - description: User data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/go_boilerplate_internal_modules_user_dto.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User created
+          schema:
+            allOf:
+            - $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_boilerplate_internal_modules_user_dto.UserResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 'Admin: Create user'
+      tags:
+      - Users
+  /users/{id}:
+    delete:
+      description: Delete a user account (Admin only).
+      parameters:
+      - description: User ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User deleted
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "400":
+          description: Invalid user ID
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 'Admin: Delete user'
+      tags:
+      - Users
+    get:
+      description: Retrieve a user's basic profile information by their ID.
+      parameters:
+      - description: User ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User retrieved
+          schema:
+            allOf:
+            - $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_boilerplate_internal_modules_user_dto.UserResponse'
+              type: object
+        "400":
+          description: Invalid user ID
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user profile
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Update user details. Users can update their own profile, or admins
+        can update any user.
+      parameters:
+      - description: User ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/go_boilerplate_internal_modules_user_dto.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User updated
+          schema:
+            allOf:
+            - $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_boilerplate_internal_modules_user_dto.UserResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update user profile
+      tags:
+      - Users
+  /users/{id}/role:
+    patch:
+      consumes:
+      - application/json
+      description: Assign a specific role to a user account (Admin only).
+      parameters:
+      - description: User ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Role assignment data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/go_boilerplate_internal_modules_user_dto.AssignRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role assigned
+          schema:
+            allOf:
+            - $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/go_boilerplate_internal_modules_user_dto.UserResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/go_boilerplate_internal_shared_utils.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 'Admin: Assign role'
+      tags:
+      - Users
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and then your token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

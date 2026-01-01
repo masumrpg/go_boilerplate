@@ -36,3 +36,7 @@ docker-down:
 
 docker-logs:
 	docker-compose logs -f
+
+# Swagger
+swagger:
+	swag init -g cmd/api/main.go -o docs --parseDependency --parseInternal

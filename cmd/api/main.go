@@ -20,7 +20,30 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/sirupsen/logrus"
+
+	_ "go_boilerplate/docs"
+
+	"github.com/gofiber/swagger"
 )
+
+// @title Go Boilerplate API
+// @version 1.0
+// @description This is a robust Go REST API boilerplate using Fiber, GORM, and PostgreSQL.
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://www.swagger.io/support
+// @contact.email support@swagger.io
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @BasePath /api/v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and then your token.
 
 func main() {
 	// 1. Load configuration
@@ -129,6 +152,9 @@ func main() {
 			"message": "API is running",
 		})
 	})
+
+	// Register Swagger route
+	app.Get("/swagger/*", swagger.HandlerDefault)
 
 	// 8. Register module routes
 	logger.Info("Registering module routes...")
