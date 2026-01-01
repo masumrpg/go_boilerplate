@@ -44,8 +44,8 @@ func DropAllTables(db *gorm.DB, logger *logrus.Logger) error {
 
 // RenameTables drops old tables so AutoMigrate can create new ones with prefixes
 // This is a destructive operation and should only be used in development
-// Old tables to drop: users, oauth_accounts, refresh_tokens
-// New tables will be created with prefixes: m_users, m_roles, t_oauth_accounts, t_refresh_tokens
+// Old tables to drop: users, oauth_accounts, refresh_tokens, sessions
+// New tables will be created with prefixes: m_users, m_roles, t_oauth_accounts, t_sessions
 func RenameTables(db *gorm.DB, logger *logrus.Logger) error {
 	logger.Info("Starting table rename migration...")
 
@@ -55,6 +55,7 @@ func RenameTables(db *gorm.DB, logger *logrus.Logger) error {
 		"oauth_accounts",
 		"refresh_tokens",
 		"t_refresh_tokens",
+		"sessions",
 	}
 
 	// Drop old tables if they exist

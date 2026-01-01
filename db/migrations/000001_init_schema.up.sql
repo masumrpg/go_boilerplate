@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS m_users (
     email VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL,
     role_id UUID NOT NULL,
+    is_verified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP WITH TIME ZONE,
@@ -31,18 +32,25 @@ CREATE TABLE IF NOT EXISTS m_users (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_m_users_email ON m_users(email);
 CREATE INDEX IF NOT EXISTS idx_m_users_deleted_at ON m_users(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_m_users_is_verified ON m_users(is_verified);
 
--- Create t_refresh_tokens table
-CREATE TABLE IF NOT EXISTS t_refresh_tokens (
+-- Create t_sessions table
+CREATE TABLE IF NOT EXISTS t_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
     token VARCHAR(500) NOT NULL,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    device_id VARCHAR(255),
+    is_blocked BOOLEAN DEFAULT FALSE,
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    last_active TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_refresh_tokens_user FOREIGN KEY (user_id) REFERENCES m_users(id) ON DELETE CASCADE
+    CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES m_users(id) ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_t_refresh_tokens_token ON t_refresh_tokens(token);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_t_sessions_token ON t_sessions(token);
+CREATE INDEX IF NOT EXISTS idx_t_sessions_user_id ON t_sessions(user_id);
 
 -- Create t_oauth_accounts table
 CREATE TABLE IF NOT EXISTS t_oauth_accounts (
