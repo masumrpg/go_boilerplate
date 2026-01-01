@@ -19,6 +19,10 @@ go build -o bin/api cmd/api/main.go
 make swagger
 # Or manually: swag init -g cmd/api/main.go -o docs --parseDependency --parseInternal
 
+# Generate a New Module (CLI Tool)
+make module
+# Or manually: go run cmd/gen/main.go <module-name>
+
 # Run tests
 go test ./... -v
 
@@ -42,6 +46,7 @@ go mod tidy
 
 ```
 cmd/api/main.go          # Application entry point
+cmd/gen/main.go          # CLI module generator tool
 internal/
   shared/                # Shared components used across modules
     config/              # Configuration loading (Viper + .env)

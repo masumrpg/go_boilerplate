@@ -1,30 +1,31 @@
 # 🛡️ Go Boilerplate - Enterprise-Ready Modular API
 
-Sebuah boilerplate REST API yang kokoh, modular (feature-based), dan siap produksi menggunakan ekosistem Go modern. Dirancang untuk skalabilitas, keamanan, dan kemudahan pengembangan.
+A robust, modular (feature-based), and production-ready REST API boilerplate using the modern Go ecosystem. Designed for scalability, security, and developer productivity.
 
 ---
 
-## 🚀 Fitur Utama
+## 🚀 Key Features
 
-- **Modular Architecture**: Struktur folder berbasis fitur (Domain-Driven Design friendly).
+- **Modular Architecture**: Feature-based folder structure (Domain-Driven Design friendly).
 - **Advanced Auth System**:
   - JWT Authentication (Access & Refresh Tokens).
-  - RBAC (Role-Based Access Control) dengan permission granular.
-  - Multi-factor Authentication (2FA) & Verifikasi Email.
+  - RBAC (Role-Based Access Control) with granular permissions.
+  - Multi-factor Authentication (2FA) & Email Verification.
   - Session Management & Device Tracking.
 - **OAuth2 Integration**: Login via Google & GitHub.
-- **Robust Persistence**: GORM dengan dukungan PostgreSQL.
-- **Caching & OTP**: Redis untuk validasi OTP yang cepat dan aman.
-- **Embedded Email Templates**: Template HTML yang dinamis dengan `//go:embed`.
-- **Automatic Swagger**: Dokumentasi API interaktif yang selalu sinkron.
-- **Database Migrations**: Manajemen skema versi menggunakan `golang-migrate`.
-- **Docker Ready**: Deployment instan dengan Docker Compose.
+- **Robust Persistence**: GORM with PostgreSQL support.
+- **Caching & OTP**: Redis for fast and secure OTP validation and session tracking.
+- **Embedded Email Templates**: Dynamic HTML templates using `//go:embed`.
+- **Automatic Swagger**: Interactive API documentation always in sync with your code.
+- **Database Migrations**: Versioned schema management using `golang-migrate`.
+- **Docker Ready**: Instant deployment with Docker Compose.
+- **CLI Module Generator**: Generate full CRUD boilerplate for new features with one command.
 
 ---
 
-## 🏗️ Arsitektur Sistem
+## 🏗️ System Architecture
 
-Aplikasi ini menggunakan pola **Modular Layered Architecture**. Setiap modul merangkum logikanya sendiri sementara tetap berbagi komponen universal di folder `shared`.
+This application follows a **Modular Layered Architecture**. Each module encapsulates its own logic while sharing universal components in the `shared` folder.
 
 ```mermaid
 graph TD
@@ -72,9 +73,7 @@ graph TD
 
 ---
 
-## 🔐 Alur Autentikasi & Keamanan
-
-Berikut adalah alur pendaftaran hingga login dengan fitur keamanan berlapis:
+## 🔐 Auth & Security Flow
 
 ```mermaid
 sequenceDiagram
@@ -84,8 +83,8 @@ sequenceDiagram
     participant DB as PostgreSQL
     participant Mail as Email Service
 
-    Note over User, Mail: Registrasi Account
-    User->>API: POST /register (Data User)
+    Note over User, Mail: Account Registration
+    User->>API: POST /register (User Data)
     API->>DB: Save User (Status: Unverified)
     API->>Redis: Set Activation CODE (TTL 10m)
     API->>Mail: Send Verification Email
@@ -108,54 +107,86 @@ sequenceDiagram
 
 ---
 
-## 🛠️ Technology Stack & Penggunaan
+## 🛠️ Technology Stack
 
-| Komponen | Library | Alasan & Penggunaan |
+| Component | Library | Purpose |
 | :--- | :--- | :--- |
-| **Web Framework** | [Fiber v2](https://gofiber.io/) | Framework Go tercepat (berbasis fasthttp) dengan performa tinggi & middleware lengkap. |
-| **Database ORM** | [GORM](https://gorm.io/) | ORM paling populer di Go. Digunakan untuk query, relasi, dan auto-migration. |
-| **Database** | [PostgreSQL](https://www.postgresql.org/) | RDBMS powerfull untuk konsistensi data dan integritas. |
-| **Cache & OTP** | [Redis](https://redis.io/) | Digunakan untuk menyimpan kode OTP activation/2FA dengan TTL dan session tracking. |
-| **Auth** | [JWT-Go (v5)](https://github.com/golang-jwt/jwt) | Implementasi token keamanan berbasis standar industri. |
-| **Configuration** | [Viper](https://github.com/spf13/viper) | Membaca konfigurasi dari `.env`, env vars, atau config file secara dinamis. |
-| **Validation** | [Validator v10](https://github.com/go-playground/validator) | Validasi request DTO (email, required, min-max) menggunakan struct tags. |
-| **Logging** | [Logrus](https://github.com/sirupsen/logrus) | Structured logging dengan level (info, warn, error) dan format JSON/Text. |
-| **Email** | [Gomail](https://github.com/go-gomail/gomail) | Mengelola pengiriman email SMTP untuk notifikasi dan OTP. |
-| **Migrations** | [Golang-Migrate](https://github.com/golang-migrate/migrate) | Versioning database schema secara eksplisit dan aman. |
-| **API Docs** | [Swaggo](https://github.com/swaggo/swag) | Meng-generate OpenAPI 2.0 dokumentasi langsung dari code comments. |
+| **Web Framework** | [Fiber v2](https://gofiber.io/) | High-performance (fasthttp-based) web framework. |
+| **Database ORM** | [GORM](https://gorm.io/) | Object-Relational Mapping for database management. |
+| **Data Persistence** | [PostgreSQL](https://www.postgresql.org/) | Robust and consistent RDBMS. |
+| **Cache & OTP** | [Redis](https://redis.io/) | Fast storage for OTP codes and session tracking. |
+| **Auth** | [JWT-Go (v5)](https://github.com/golang-jwt/jwt) | Industry-standard JWT tokens. |
+| **Config** | [Viper](https://github.com/spf13/viper) | Dynamic configuration loading (.env, env vars). |
+| **Validation** | [Validator v10](https://github.com/go-playground/validator) | Struct-based input validation. |
+| **Logging** | [Logrus](https://github.com/sirupsen/logrus) | Structured logging for debugging and auditing. |
+| **Migrations** | [Golang-Migrate](https://github.com/golang-migrate/migrate) | Versioned database schema management. |
+| **API Docs** | [Swaggo](https://github.com/swaggo/swag) | OpenAPI/Swagger generation. |
 
 ---
 
-## 📁 Struktur Folder Modular
+## 📘 Development Guide
 
-```text
-internal/
-├── shared/                # 🛠️ GLOBAL COMPONENTS
-│   ├── config/            # Viper setup
-│   ├── database/          # Connections (GORM, Redis) & Migrations
-│   ├── middleware/        # Auth, RBAC, Logger, CORS, Validator
-│   └── utils/             # JWT, Hash, Response, Logger Helpers
-│
-└── modules/               # 🔥 DOMAIN MODULES
-    ├── auth/              # Logic Login, Registration, 2FA
-    ├── user/              # Management User & Profile
-    ├── role/              # RBAC: Create Role & Permissions
-    ├── oauth/             # Google & GitHub Login
-    └── email/             # SMTP Service & HTML Templates
+### 1. Generating a New Module (Recommended)
+You can generate a full module with CRUD boilerplate, DTOs, and automatic route injection using the built-in generator:
+
+```bash
+# Recommended: Using Makefile
+make module # then enter the name when prompted
+
+# Or using go run directly
+go run cmd/gen/main.go product
+```
+**This command will create:**
+- `internal/modules/product/` with model, repository, service, handler, routes, and DTOs.
+- Automatic registration in `cmd/api/main.go`.
+- Automatic model registration for development AutoMigrate.
+
+### 2. Manual Module Creation
+If you prefer manual creation, follow the structure in `internal/modules/`. Ensure your module includes:
+- **`model.go`**: Database entity with GORM tags.
+- **`dto/`**: Request and Response structs.
+- **`repository.go`**: Database access interface and implementation.
+- **`service.go`**: Business logic layer.
+- **`handler.go`**: HTTP request parsing and response formatting.
+- **`routes.go`**: Endpoints and middleware registration.
+
+Register the module in `cmd/api/main.go` using the generated `RegisterRoutes` function.
+
+### 3. Database Migrations
+We provide two ways to manage migrations:
+- **Development**: Models are automatically synced via GORM `AutoMigrate` when `SERVER_MODE=development`.
+- **Production**: Use explicit SQL migrations for safety.
+
+**Commands:**
+```bash
+# Create a new migration file
+make migrate-create # then type name, e.g., create_products_table
+
+# Run all pending migrations
+make migrate-up
+
+# Rollback the last migration
+make migrate-down
+```
+
+### 4. Updating Documentation
+Always update Swagger docs after changing handlers or routes:
+```bash
+make swagger
 ```
 
 ---
 
-## 🛠️ Cara Menjalankan
+## 🛠️ Getting Started
 
-### Menggunakan Docker (Rekomendasi)
+### Using Docker (Preferred)
 ```bash
 # 1. Clone repository
-# 2. Setup .env (copy dari .env.example)
+# 2. Setup .env (copy from .env.example)
 docker-compose up -d --build
 ```
 
-### Manual (Development)
+### Manual Installation
 ```bash
 # 1. Install dependencies
 go mod download
@@ -163,29 +194,19 @@ go mod download
 # 2. Run migrations
 make migrate-up
 
-# 3. Generate Swagger (jika ada perubahan handler)
+# 3. Generate initial Swagger
 make swagger
 
-# 4. Start Server
+# 4. Start the server
 go run cmd/api/main.go
 ```
 
 ---
 
-## 📚 API Dokumentasi
-
-Setelah server berjalan, dokumentasi lengkap tersedia di:
-- **Swagger UI**: `http://localhost:3000/swagger/`
-- **Postman**: Import file `Go_Boilerplate_API.postman_collection.json` di root folder.
-
----
-
-## 🔐 Keamanan & Fitur Tambahan
-
-- **Device Fingerprinting**: Setiap session mencatat `IP Address`, `User Agent`, dan `Device ID`.
-- **RBAC Granular**: Akses dikontrol hingga tingkat resource (contoh: `roles:create`, `users:update`).
-- **Clean Shutdown**: Menangani signal Linux (`SIGINT`, `SIGTERM`) untuk menutup koneksi database secara aman saat server mati.
-- **Embedded Templates**: Template email berada di dalam binary, memudahkan distribusi tanpa perlu mengcopy file manual.
+## 🔐 Security Features
+- **Device Fingerprinting**: Every session records `IP`, `User Agent`, and `Device ID` (via `X-Device-ID` header).
+- **Granular RBAC**: Use `RequireRole` or `RequirePermission` middleware to protect resources.
+- **Graceful Shutdown**: Automatically closes DB and Redis connections on SIGINT/SIGTERM.
 
 ---
 © 2026 Go Boilerplate Squad.

@@ -12,6 +12,8 @@ import (
 	oauthdto "go_boilerplate/internal/modules/oauth/dto"
 	roleModule "go_boilerplate/internal/modules/role"
 	userModule "go_boilerplate/internal/modules/user"
+
+	// [MODULE_IMPORT_MARKER]
 	"go_boilerplate/internal/shared/config"
 	"go_boilerplate/internal/shared/database"
 	"go_boilerplate/internal/shared/middleware"
@@ -90,6 +92,7 @@ func main() {
 			&userModule.User{},
 			&dto.Session{},
 			&oauthdto.OAuthAccount{},
+			// [MODULE_MIGRATION_MARKER]
 		}
 
 		if err := database.AutoMigrate(db, migrationModels, logger); err != nil {
@@ -174,6 +177,8 @@ func main() {
 	// OAuth routes (Google, GitHub)
 	oauthModule.RegisterRoutes(app, db, cfg, logger)
 	logger.Info("✓ OAuth routes registered")
+
+	// [MODULE_ROUTE_MARKER]
 
 	// 9. Graceful shutdown
 	// Handle shutdown signals

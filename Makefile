@@ -40,3 +40,8 @@ docker-logs:
 # Swagger
 swagger:
 	swag init -g cmd/api/main.go -o docs --parseDependency --parseInternal
+
+# Module Generator
+module:
+	@read -p "Enter module name (singular): " name; \
+	go run cmd/gen/main.go $$name
